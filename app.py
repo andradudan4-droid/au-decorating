@@ -1,6 +1,8 @@
 from flask import Flask, request, jsonify, render_template_string, session, Response
 import os
 import uuid
+import smtplib
+from email.mime.text import MIMEText
 from groq import Groq
 
 app = Flask(__name__)
@@ -11,6 +13,38 @@ app.config["SESSION_COOKIE_SECURE"] = True
 client = Groq(
     api_key=os.environ.get("GROQ_API_KEY")
 )
+
+# --- Email notification settings ---
+# These come from environment variables you'll set in Render.
+NOTIFY_EMAIL_ADDRESS = os.environ.get("NOTIFY_EMAIL_ADDRESS")   # the Gmail account SENDING the alert
+NOTIFY_EMAIL_PASSWORD = os.environ.get("NOTIFY_EMAIL_PASSWORD") # that Gmail account's App Password
+NOTIFY_TO = os.environ.get("NOTIFY_TO", "mehemt@au-decorating.com")  # where leads get sent
+
+def send_lead_email(conversation):
+    """Emails the full chat transcript whenever a conversation looks like a real lead."""
+    if not NOTIFY_EMAIL_ADDRESS or not NOTIFY_EMAIL_PASSWORD:
+        return  # not configured yet, skip silently
+
+    transcript_lines = []
+    for msg in conversation:
+        if msg["role"] == "user":
+            transcript_lines.append(f"Customer: {msg['content']}")
+        elif msg["role"] == "assistant":
+            transcript_lines.append(f"Assistant: {msg['content']}")
+    transcript = "\n\n".join(transcript_lines)
+
+    body = f"New enquiry from the AU Decorating website chat:\n\n{transcript}"
+    email = MIMEText(body)
+    email["Subject"] = "New website enquiry - AU Decorating"
+    email["From"] = NOTIFY_EMAIL_ADDRESS
+    email["To"] = NOTIFY_TO
+
+    try:
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+            server.login(NOTIFY_EMAIL_ADDRESS, NOTIFY_EMAIL_PASSWORD)
+            server.sendmail(NOTIFY_EMAIL_ADDRESS, [NOTIFY_TO], email.as_string())
+    except Exception as e:
+        print(f"Failed to send lead email: {e}")
 
 SYSTEM_PROMPT = """
 You are a friendly assistant for "AU Decorating Ltd", a painting and
@@ -47,6 +81,7 @@ depends on the job and they'll get a free, no-obligation quote.
 """
 
 all_conversations = {}
+notified_sessions = set()
 
 BASE_STYLE = """
 <style>
@@ -76,7 +111,30 @@ BASE_STYLE = """
     footer { background: #0a0a0a; color: #e8d9a8; text-align: center; padding: 30px; font-size: 14px; margin-top: 40px; }
     .contact-box { background: #f7f7f5; border-radius: 10px; padding: 30px; border-top: 3px solid #D4AF37; }
     .contact-box p { margin: 8px 0; }
+    .testimonial-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 22px; }
+    .testimonial-card { background: #f7f7f5; border-radius: 10px; padding: 24px; border-left: 3px solid #D4AF37; }
+    .testimonial-stars { color: #D4AF37; font-size: 14px; margin-bottom: 10px; }
+    .testimonial-text { font-style: italic; color: #333; line-height: 1.5; margin-bottom: 14px; }
+    .testimonial-meta { font-size: 13px; color: #888; }
     .feature-img { width: 100%; border-radius: 10px; margin: 30px 0; max-height: 420px; object-fit: cover; }
+
+    /* --- Mobile responsiveness --- */
+    @media (max-width: 600px) {
+        nav { padding: 14px 18px; flex-direction: column; align-items: flex-start; gap: 10px; }
+        nav .links { display: flex; flex-wrap: wrap; gap: 4px 0; }
+        nav .links a { margin-left: 0; margin-right: 18px; }
+        .hero { padding: 56px 18px; }
+        .hero h1 { font-size: 26px; }
+        .hero p { font-size: 15px; }
+        .section { padding: 40px 18px; }
+        .section h2 { font-size: 22px; }
+        .grid { grid-template-columns: 1fr 1fr; gap: 14px; }
+        .gallery-item-wide { grid-column: span 2; }
+        .testimonial-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 420px) {
+        .grid { grid-template-columns: 1fr; }
+    }
 </style>
 """
 
@@ -118,6 +176,41 @@ HOME_PAGE = """
         <div class="card"><h3>Free Estimates</h3><p>No fixed prices - every quote is tailored to your job, with no obligation.</p></div>
         <div class="card"><h3>Flexible Scheduling</h3><p>Available every day, plus 24-hour call-out, to fit around your time.</p></div>
         <div class="card"><h3>Domestic &amp; Commercial</h3><p>From a single room to full commercial fit-outs, including insurance work.</p></div>
+    </div>
+</div>
+
+<div class="section" style="background:#f7f7f5; max-width: 100%; padding-top: 60px; padding-bottom: 60px;">
+    <div style="max-width:1000px; margin:0 auto;">
+        <h2>What customers say</h2>
+        <p class="sub">10/10 rating from 45+ reviews on Checkatrade</p>
+        <div class="testimonial-grid">
+            <div class="testimonial-card">
+                <div class="testimonial-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+                <p class="testimonial-text">Mehmet repaired cracked plaster and water damage, then redecorated quickly and tidily - even tackled a few extra small jobs at no extra charge.</p>
+                <p class="testimonial-meta">Verified Checkatrade review</p>
+            </div>
+            <div class="testimonial-card">
+                <div class="testimonial-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+                <p class="testimonial-text">A repeat customer praised Mehmet's hallway decorating as efficient, great value, and finished with an excellent clean-up afterwards.</p>
+                <p class="testimonial-meta">Verified Checkatrade review</p>
+            </div>
+            <div class="testimonial-card">
+                <div class="testimonial-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+                <p class="testimonial-text">Exterior painting customer noted the careful prep work made a big visible difference, with the team arriving on time and leaving everything tidy.</p>
+                <p class="testimonial-meta">Verified Checkatrade review</p>
+            </div>
+            <div class="testimonial-card">
+                <div class="testimonial-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+                <p class="testimonial-text">Praised for staying in touch from the first enquiry through to completion, arriving on time, and being polite and friendly throughout the job.</p>
+                <p class="testimonial-meta">Verified Checkatrade review</p>
+            </div>
+            <div class="testimonial-card">
+                <div class="testimonial-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
+                <p class="testimonial-text">A bathroom and bedroom ceiling painting customer highlighted a quick, clear quote and a flexible approach to the work required.</p>
+                <p class="testimonial-meta">Verified Checkatrade review</p>
+            </div>
+        </div>
+        <p style="margin-top:24px;"><a href="https://www.checkatrade.com/trades/audecoratinglimited" target="_blank" style="color:#1B3A5C;">See all reviews on Checkatrade &rarr;</a></p>
     </div>
 </div>
 """ + FOOTER + WIDGET_INCLUDE + """
@@ -221,7 +314,21 @@ WIDGET_JS = """
     var iframe = document.createElement('iframe');
     iframe.id = 'au-chat-iframe';
     iframe.src = BASE_URL + '/widget-frame';
-    iframe.style.cssText = 'position:fixed;bottom:112px;right:24px;width:400px;height:580px;border:none;border-radius:18px;box-shadow:0 12px 40px rgba(0,0,0,0.25);display:none;z-index:999999;';
+
+    function applyIframeStyle() {
+        var isMobile = window.innerWidth <= 600;
+        if (isMobile) {
+            iframe.style.cssText = 'position:fixed;bottom:0;right:0;left:0;top:0;width:100%;height:100%;border:none;border-radius:0;box-shadow:none;display:none;z-index:999999;';
+        } else {
+            iframe.style.cssText = 'position:fixed;bottom:112px;right:24px;width:400px;height:580px;border:none;border-radius:18px;box-shadow:0 12px 40px rgba(0,0,0,0.25);display:none;z-index:999999;';
+        }
+    }
+    applyIframeStyle();
+    window.addEventListener('resize', function () {
+        var wasOpen = iframe.style.display === 'block';
+        applyIframeStyle();
+        if (wasOpen) iframe.style.display = 'block';
+    });
 
     var isOpen = false;
     bubble.addEventListener('click', function () {
@@ -231,6 +338,13 @@ WIDGET_JS = """
 
     document.body.appendChild(bubble);
     document.body.appendChild(iframe);
+
+    window.addEventListener('message', function (event) {
+        if (event.data === 'close-au-chat') {
+            isOpen = false;
+            iframe.style.display = 'none';
+        }
+    });
 })();
 """
 
@@ -258,9 +372,12 @@ WIDGET_FRAME = """
 </head>
 <body>
     <div id="chatWindow">
-        <div id="chatHeader">
-            <div class="title">AU Decorating Ltd</div>
-            <div class="subtitle">Usually replies in a few minutes</div>
+        <div id="chatHeader" style="display:flex; align-items:center; justify-content:space-between;">
+            <div>
+                <div class="title">AU Decorating Ltd</div>
+                <div class="subtitle">Usually replies in a few minutes</div>
+            </div>
+            <div id="closeBtn" onclick="window.parent.postMessage('close-au-chat', '*')" style="cursor:pointer; font-size:24px; color:#D4AF37; line-height:1; padding:4px 8px;">&times;</div>
         </div>
         <div id="chatbox"></div>
         <div id="inputRow">
@@ -363,6 +480,13 @@ def chat_endpoint():
 
     ai_reply = response.choices[0].message.content
     conversation.append({"role": "assistant", "content": ai_reply})
+
+    # Once someone has exchanged a few real messages, treat it as a likely lead
+    # and email the transcript - but only once per visitor session.
+    user_message_count = sum(1 for m in conversation if m["role"] == "user")
+    if session_id not in notified_sessions and user_message_count >= 3:
+        send_lead_email(conversation)
+        notified_sessions.add(session_id)
 
     return jsonify({"reply": ai_reply})
 
