@@ -1,9 +1,8 @@
 from flask import Flask, request, jsonify, render_template_string, session, Response
 import os
 import uuid
-import smtplib
 import threading
-from email.mime.text import MIMEText
+import requests
 from groq import Groq
 
 app = Flask(__name__)
@@ -16,15 +15,16 @@ client = Groq(
 )
 
 # --- Email notification settings ---
-# These come from environment variables you'll set in Render.
-NOTIFY_EMAIL_ADDRESS = os.environ.get("NOTIFY_EMAIL_ADDRESS")   # the Gmail account SENDING the alert
-NOTIFY_EMAIL_PASSWORD = os.environ.get("NOTIFY_EMAIL_PASSWORD") # that Gmail account's App Password
-NOTIFY_TO = os.environ.get("NOTIFY_TO", "mehemt@au-decorating.com")  # where leads get sent
+# Render's free tier blocks direct SMTP (the old Gmail approach), so we
+# use Resend instead, which sends over normal HTTPS - not blocked.
+RESEND_API_KEY = os.environ.get("RESEND_API_KEY")
+NOTIFY_TO = os.environ.get("NOTIFY_TO", "mehemt@au-decorating.com")
 
 def send_lead_email(conversation):
     """Emails the full chat transcript whenever a conversation looks like a real lead."""
-    if not NOTIFY_EMAIL_ADDRESS or not NOTIFY_EMAIL_PASSWORD:
-        return  # not configured yet, skip silently
+    if not RESEND_API_KEY:
+        print("RESEND_API_KEY not set, skipping lead email")
+        return
 
     transcript_lines = []
     for msg in conversation:
@@ -34,16 +34,20 @@ def send_lead_email(conversation):
             transcript_lines.append(f"Assistant: {msg['content']}")
     transcript = "\n\n".join(transcript_lines)
 
-    body = f"New enquiry from the AU Decorating website chat:\n\n{transcript}"
-    email = MIMEText(body)
-    email["Subject"] = "New website enquiry - AU Decorating"
-    email["From"] = NOTIFY_EMAIL_ADDRESS
-    email["To"] = NOTIFY_TO
-
     try:
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=10) as server:
-            server.login(NOTIFY_EMAIL_ADDRESS, NOTIFY_EMAIL_PASSWORD)
-            server.sendmail(NOTIFY_EMAIL_ADDRESS, [NOTIFY_TO], email.as_string())
+        response = requests.post(
+            "https://api.resend.com/emails",
+            headers={"Authorization": f"Bearer {RESEND_API_KEY}"},
+            json={
+                "from": "AU Decorating Website <onboarding@resend.dev>",
+                "to": [NOTIFY_TO],
+                "subject": "New website enquiry - AU Decorating",
+                "text": f"New enquiry from the AU Decorating website chat:\n\n{transcript}",
+            },
+            timeout=10,
+        )
+        if response.status_code >= 300:
+            print(f"Resend error: {response.status_code} {response.text}")
     except Exception as e:
         print(f"Failed to send lead email: {e}")
 
