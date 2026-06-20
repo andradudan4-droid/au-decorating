@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify, render_template_string, session, Resp
 import os
 import uuid
 import smtplib
+import threading
 from email.mime.text import MIMEText
 from groq import Groq
 
@@ -40,7 +41,7 @@ def send_lead_email(conversation):
     email["To"] = NOTIFY_TO
 
     try:
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=10) as server:
             server.login(NOTIFY_EMAIL_ADDRESS, NOTIFY_EMAIL_PASSWORD)
             server.sendmail(NOTIFY_EMAIL_ADDRESS, [NOTIFY_TO], email.as_string())
     except Exception as e:
@@ -501,10 +502,13 @@ def chat_endpoint():
 
     # Once someone has exchanged a few real messages, treat it as a likely lead
     # and email the transcript - but only once per visitor session.
+    # This runs in a background thread so a slow/failed email never
+    # holds up the actual chat reply to the visitor.
     user_message_count = sum(1 for m in conversation if m["role"] == "user")
     if session_id not in notified_sessions and user_message_count >= 3:
-        send_lead_email(conversation)
         notified_sessions.add(session_id)
+        conversation_copy = list(conversation)
+        threading.Thread(target=send_lead_email, args=(conversation_copy,), daemon=True).start()
 
     return jsonify({"reply": ai_reply})
 
