@@ -212,16 +212,16 @@ WIDGET_JS = """
 
     var bubble = document.createElement('div');
     bubble.id = 'au-chat-bubble';
-    bubble.innerHTML = '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">' +
+    bubble.innerHTML = '<svg width="34" height="34" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">' +
         '<path d="M21 11.5C21.0034 12.8199 20.6951 14.1219 20.1 15.3C19.3944 16.7118 18.3098 17.8992 16.9674 18.7293C15.6251 19.5594 14.0782 19.9994 12.5 20C11.1801 20.0035 9.87812 19.6951 8.7 19.1L3 21L4.9 15.3C4.30493 14.1219 3.99656 12.8199 4 11.5C4.00061 9.92179 4.44061 8.37488 5.27072 7.03258C6.10083 5.69028 7.28825 4.6056 8.7 3.90003C9.87812 3.30496 11.1801 2.99659 12.5 3.00003H13C15.0843 3.11502 17.053 3.99479 18.5291 5.47089C20.0052 6.94699 20.885 8.91568 21 11V11.5Z" stroke="#D4AF37" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-    bubble.style.cssText = 'position:fixed;bottom:24px;right:24px;width:60px;height:60px;border-radius:50%;background:#0a0a0a;border:2px solid #D4AF37;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.25);z-index:999999;transition:transform 0.15s ease;';
+    bubble.style.cssText = 'position:fixed;bottom:24px;right:24px;width:76px;height:76px;border-radius:50%;background:#0a0a0a;border:2px solid #D4AF37;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.25);z-index:999999;transition:transform 0.15s ease;';
     bubble.onmouseenter = function () { bubble.style.transform = 'scale(1.06)'; };
     bubble.onmouseleave = function () { bubble.style.transform = 'scale(1)'; };
 
     var iframe = document.createElement('iframe');
     iframe.id = 'au-chat-iframe';
     iframe.src = BASE_URL + '/widget-frame';
-    iframe.style.cssText = 'position:fixed;bottom:96px;right:24px;width:350px;height:480px;border:none;border-radius:16px;box-shadow:0 12px 40px rgba(0,0,0,0.25);display:none;z-index:999999;';
+    iframe.style.cssText = 'position:fixed;bottom:112px;right:24px;width:400px;height:580px;border:none;border-radius:18px;box-shadow:0 12px 40px rgba(0,0,0,0.25);display:none;z-index:999999;';
 
     var isOpen = false;
     bubble.addEventListener('click', function () {
@@ -242,17 +242,17 @@ WIDGET_FRAME = """
         * { box-sizing: border-box; }
         body { margin: 0; font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif; }
         #chatWindow { display: flex; flex-direction: column; height: 100vh; background: white; border-radius: 16px; overflow: hidden; }
-        #chatHeader { background: #0a0a0a; color: #D4AF37; padding: 16px 18px; }
-        #chatHeader .title { font-size: 15px; font-weight: 600; }
-        #chatHeader .subtitle { font-size: 12px; opacity: 0.75; color: #e8d9a8; }
-        #chatbox { flex: 1; padding: 16px; overflow-y: auto; background: #f7f7f5; }
-        .msg { margin: 8px 0; padding: 10px 13px; border-radius: 14px; max-width: 82%; font-size: 14px; line-height: 1.4; }
+        #chatHeader { background: #0a0a0a; color: #D4AF37; padding: 20px 22px; }
+        #chatHeader .title { font-size: 17px; font-weight: 600; }
+        #chatHeader .subtitle { font-size: 13px; opacity: 0.75; color: #e8d9a8; }
+        #chatbox { flex: 1; padding: 20px; overflow-y: auto; background: #f7f7f5; }
+        .msg { margin: 10px 0; padding: 12px 16px; border-radius: 16px; max-width: 82%; font-size: 16px; line-height: 1.45; }
         .user { background: #0a0a0a; color: #D4AF37; margin-left: auto; }
         .bot { background: #ECECEC; color: #222; }
-        #inputRow { display: flex; border-top: 1px solid #eee; padding: 8px; background: white; }
-        #userInput { flex: 1; padding: 10px 12px; border: 1px solid #ddd; border-radius: 20px; font-size: 14px; outline: none; }
+        #inputRow { display: flex; border-top: 1px solid #eee; padding: 12px; background: white; }
+        #userInput { flex: 1; padding: 12px 16px; border: 1px solid #ddd; border-radius: 24px; font-size: 16px; outline: none; }
         #userInput:focus { border-color: #D4AF37; }
-        #sendBtn { border: none; background: #0a0a0a; color: #D4AF37; width: 38px; height: 38px; border-radius: 50%; margin-left: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        #sendBtn { border: none; background: #0a0a0a; color: #D4AF37; width: 46px; height: 46px; border-radius: 50%; margin-left: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
         #sendBtn:hover { background: #1f1f1f; }
     </style>
 </head>
@@ -266,7 +266,7 @@ WIDGET_FRAME = """
         <div id="inputRow">
             <input type="text" id="userInput" placeholder="Type a message..." onkeypress="if(event.key==='Enter') sendMessage()">
             <button id="sendBtn" onclick="sendMessage()">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
                     <path d="M3 11L21 3L13 21L11 13L3 11Z" stroke="white" stroke-width="2" stroke-linejoin="round"/>
                 </svg>
             </button>
