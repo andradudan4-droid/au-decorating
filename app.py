@@ -83,6 +83,14 @@ a fixed-price/fixed-slot booking business. For every enquiry:
 6. Let them know AU Decorating will be in touch to arrange a free
    estimate / site visit
 
+IMPORTANT - internal signal (never mention this to the customer):
+Once you have successfully collected BOTH their name AND a phone
+number or email address in the conversation, end your reply with
+the exact text [LEAD_CAPTURED] on its own new line, after your
+normal message to the customer. Only do this once you genuinely
+have both pieces of information. Never explain or reference this
+marker to the customer - it is purely an internal signal.
+
 Keep replies short, warm, and natural - like a helpful person texting
 back, not a formal essay. Do not invent prices - always say pricing
 depends on the job and they'll get a free, no-obligation quote.
@@ -502,14 +510,19 @@ def chat_endpoint():
     )
 
     ai_reply = response.choices[0].message.content
+
+    # Check if the AI signalled it has genuinely captured a name + contact
+    # detail. If so, strip the internal marker before showing the reply.
+    lead_captured = "[LEAD_CAPTURED]" in ai_reply
+    if lead_captured:
+        ai_reply = ai_reply.replace("[LEAD_CAPTURED]", "").strip()
+
     conversation.append({"role": "assistant", "content": ai_reply})
 
-    # Once someone has exchanged a few real messages, treat it as a likely lead
-    # and email the transcript - but only once per visitor session.
-    # This runs in a background thread so a slow/failed email never
-    # holds up the actual chat reply to the visitor.
-    user_message_count = sum(1 for m in conversation if m["role"] == "user")
-    if session_id not in notified_sessions and user_message_count >= 3:
+    # Once a real lead (name + contact info) has been captured, email the
+    # transcript - but only once per visitor session. Runs in a background
+    # thread so a slow/failed email never holds up the chat reply itself.
+    if session_id not in notified_sessions and lead_captured:
         notified_sessions.add(session_id)
         conversation_copy = list(conversation)
         threading.Thread(target=send_lead_email, args=(conversation_copy,), daemon=True).start()
