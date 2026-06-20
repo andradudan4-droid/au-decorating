@@ -71,8 +71,11 @@ a fixed-price/fixed-slot booking business. For every enquiry:
 2. Ask roughly what the property/job involves (e.g. how many rooms,
    approximate size, any specifics)
 3. Ask if it's a domestic or commercial job
-4. Collect their name and best contact number or email
-5. Let them know AU Decorating will be in touch to arrange a free
+4. Gently ask if they have a rough budget in mind for the job - frame
+   it as helping tailor the quote, not as a hard requirement. If they
+   don't know or don't want to say, that's completely fine, just move on.
+5. Collect their name and best contact number or email
+6. Let them know AU Decorating will be in touch to arrange a free
    estimate / site visit
 
 Keep replies short, warm, and natural - like a helpful person texting
@@ -159,7 +162,10 @@ FOOTER = """
 WIDGET_INCLUDE = '<script src="/widget.js"></script>'
 
 HOME_PAGE = """
-<!DOCTYPE html><html><head><title>AU Decorating Ltd - Portsmouth Painters & Decorators</title>""" + BASE_STYLE + """</head><body>
+<!DOCTYPE html><html><head><title>AU Decorating Ltd - Portsmouth Painters & Decorators</title>
+<meta name="description" content="AU Decorating Ltd - 10/10 rated painters and decorators in Portsmouth. Interior and exterior painting, flooring, tiling, paving and driveways. Free quotes, every day.">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+""" + BASE_STYLE + """</head><body>
 """ + NAV + """
 <div class="hero">
     <div class="rating">&#9733; 10/10 from 45+ reviews on Checkatrade</div>
@@ -427,6 +433,18 @@ WIDGET_FRAME = """
 def ensure_session():
     if "session_id" not in session:
         session["session_id"] = str(uuid.uuid4())
+
+@app.route("/sitemap.xml")
+def sitemap():
+    pages = ["/", "/services", "/gallery", "/contact"]
+    base = "https://au-decorating.com"
+    urls = "".join(f"<url><loc>{base}{p}</loc></url>" for p in pages)
+    xml = f'<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{urls}</urlset>'
+    return Response(xml, mimetype="application/xml")
+
+@app.route("/robots.txt")
+def robots():
+    return Response("User-agent: *\nAllow: /\nSitemap: https://au-decorating.com/sitemap.xml", mimetype="text/plain")
 
 @app.route("/")
 def home():
