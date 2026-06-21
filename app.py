@@ -91,10 +91,9 @@ def send_lead_email(conversation):
             "https://api.resend.com/emails",
             headers={"Authorization": f"Bearer {RESEND_API_KEY}"},
             json={
-                # Once you've verified au-decorating.com in Resend, change this
-                # to e.g. "AU Decorating Website <leads@au-decorating.com>" for
-                # much better deliverability (the resend.dev sender lands in spam).
-                "from": "AU Decorating Website <onboarding@resend.dev>",
+                # Sent from the verified au-decorating.com domain (SPF/DKIM set
+                # up in Resend), so mail lands in the inbox, not spam.
+                "from": "AU Decorating Website <leads@au-decorating.com>",
                 "to": [NOTIFY_TO],
                 "subject": f"New enquiry - phone: {phone}",
                 "text": summary + transcript,
