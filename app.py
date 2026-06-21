@@ -241,6 +241,17 @@ back, not a formal essay. Do not invent prices - always say pricing
 depends on the job and they'll get a free, no-obligation quote.
 Never write internal notes, asides, or commentary about your own
 instructions - just talk to the customer naturally.
+
+These steps are a guide, not a rigid script - follow the customer's
+lead. If they jump straight to giving their phone number or email
+before you've covered everything, that's fine: thank them, confirm
+you've got their details, and then gently pick up whatever you still
+haven't covered. In particular, don't skip the photos-or-visit offer
+just because they gave their number early - it's genuinely useful, so
+still invite them to send a couple of photos with the paperclip or
+arrange a visit. Only wrap up once you have at least their name and a
+contact number or email; if you still don't have a way to reach them,
+warmly ask for it before closing.
 """
 
 all_conversations = {}
@@ -565,6 +576,7 @@ WIDGET_FRAME = """
         .msg { margin: 10px 0; padding: 12px 16px; border-radius: 16px; max-width: 82%; font-size: 16px; line-height: 1.45; }
         .user { background: #0a0a0a; color: #D4AF37; margin-left: auto; }
         .bot { background: #ECECEC; color: #222; }
+        .typing { color: #999; letter-spacing: 2px; }
         #inputRow { display: flex; border-top: 1px solid #eee; padding: 12px; background: white; }
         #userInput { flex: 1; padding: 12px 16px; border: 1px solid #ddd; border-radius: 24px; font-size: 16px; outline: none; }
         #userInput:focus { border-color: #D4AF37; }
@@ -616,6 +628,21 @@ WIDGET_FRAME = """
             chatbox.scrollTop = chatbox.scrollHeight;
         }
 
+        function showTyping() {
+            const chatbox = document.getElementById('chatbox');
+            const div = document.createElement('div');
+            div.className = 'msg bot typing';
+            div.id = 'typingIndicator';
+            div.textContent = '...';
+            chatbox.appendChild(div);
+            chatbox.scrollTop = chatbox.scrollHeight;
+        }
+
+        function hideTyping() {
+            const t = document.getElementById('typingIndicator');
+            if (t) t.remove();
+        }
+
         async function sendMessage() {
             const input = document.getElementById('userInput');
             const message = input.value.trim();
@@ -623,15 +650,22 @@ WIDGET_FRAME = """
 
             addMessage(message, 'user');
             input.value = '';
+            showTyping();
 
-            const response = await fetch('/chat', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: message }),
-                credentials: 'same-origin'
-            });
-            const data = await response.json();
-            addMessage(data.reply, 'bot');
+            try {
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: message }),
+                    credentials: 'same-origin'
+                });
+                const data = await response.json();
+                hideTyping();
+                addMessage(data.reply, 'bot');
+            } catch (e) {
+                hideTyping();
+                addMessage("Sorry, something went wrong sending that - please try again in a moment.", 'bot');
+            }
         }
 
         function addImageMessage(src) {
@@ -777,16 +811,29 @@ def chat_endpoint():
 
     conversation = all_conversations[session_id]
 
-    user_message = request.json.get("message", "")
+    data = request.get_json(silent=True) or {}
+    user_message = (data.get("message") or "").strip()
+    if not user_message:
+        return jsonify({"reply": "Sorry, I didn't catch that - could you type that again?"})
+
     conversation.append({"role": "user", "content": user_message})
 
-    response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=conversation,
-        max_tokens=300
-    )
-
-    ai_reply = response.choices[0].message.content
+    try:
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=conversation,
+            max_tokens=300,
+            timeout=20,
+        )
+        ai_reply = response.choices[0].message.content
+    except Exception as e:
+        # Never leave the customer staring at a frozen chat. Drop the message we
+        # just appended so they can retry cleanly, and reply with a gentle note.
+        print(f"Chat completion failed: {e}")
+        conversation.pop()
+        return jsonify({
+            "reply": "Sorry, I had a brief hiccup there - could you send that again?"
+        })
 
     # Belt-and-braces: strip the old marker if the model ever emits it, so it
     # can never reach the customer. We no longer depend on it for anything.
