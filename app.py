@@ -57,31 +57,73 @@ def has_contact_info(conversation):
     return bool(find_email(conversation) or find_phone(conversation))
 
 
+def _transcript(conversation):
+    lines = []
+    for msg in conversation:
+        if msg["role"] == "user":
+            lines.append(f"Customer: {msg['content']}")
+        elif msg["role"] == "assistant":
+            lines.append(f"Assistant: {msg['content']}")
+    return "\n\n".join(lines)
+
+
+# Prompt that turns a raw chat into a tidy, Checkatrade-style lead.
+LEAD_SUMMARY_PROMPT = """You are turning a website chat into a clean lead for a
+painting & decorating company owner. Read the conversation and output EXACTLY
+these labelled lines and nothing else. Fill each in from what the customer
+actually said; write "Not specified" if they didn't say. Keep each line short.
+
+Name:
+Job / work wanted:
+Property type (domestic or commercial):
+Approx budget:
+Preferred timing:
+Location / area:
+Other notes:"""
+
+
+def summarise_lead(conversation):
+    """Uses the model to extract a tidy, organised lead from the chat."""
+    try:
+        resp = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {"role": "system", "content": LEAD_SUMMARY_PROMPT},
+                {"role": "user", "content": _transcript(conversation)},
+            ],
+            max_tokens=250,
+            temperature=0.2,
+        )
+        return resp.choices[0].message.content.strip()
+    except Exception as e:
+        print(f"Lead summary failed: {e}")
+        return None
+
+
 def send_lead_email(conversation):
-    """Emails the chat transcript once we genuinely have a contactable lead."""
+    """Emails an organised lead summary (plus transcript) once contactable."""
     if not RESEND_API_KEY:
         print("RESEND_API_KEY not set, skipping lead email")
         return
 
-    email = find_email(conversation) or "(none given)"
-    phone = find_phone(conversation) or "(none given)"
+    email = find_email(conversation) or "Not provided"
+    phone = find_phone(conversation) or "Not provided"
+    transcript = _transcript(conversation)
+    structured = summarise_lead(conversation)
 
-    transcript_lines = []
-    for msg in conversation:
-        if msg["role"] == "user":
-            transcript_lines.append(f"Customer: {msg['content']}")
-        elif msg["role"] == "assistant":
-            transcript_lines.append(f"Assistant: {msg['content']}")
-    transcript = "\n\n".join(transcript_lines)
-
-    # Put the contact details at the very top so they're impossible to miss.
-    summary = (
-        "NEW WEBSITE ENQUIRY - AU Decorating\n"
-        "-----------------------------------\n"
+    # Contact details come from reliable regex; the rest from the summary.
+    body = (
+        "NEW LEAD - AU Decorating\n"
+        "========================\n"
         f"Phone: {phone}\n"
         f"Email: {email}\n"
-        "-----------------------------------\n\n"
-        "Full conversation:\n\n"
+    )
+    if structured:
+        body += structured + "\n"
+    body += (
+        "========================\n\n"
+        "Full conversation (for reference):\n\n"
+        + transcript
     )
 
     try:
@@ -93,8 +135,8 @@ def send_lead_email(conversation):
                 # up in Resend), so mail lands in the inbox, not spam.
                 "from": "AU Decorating Website <leads@au-decorating.com>",
                 "to": [NOTIFY_TO],
-                "subject": f"New enquiry - phone: {phone}",
-                "text": summary + transcript,
+                "subject": f"New lead - phone: {phone}",
+                "text": body,
             },
             timeout=10,
         )
