@@ -22,10 +22,8 @@ RESEND_API_KEY = os.environ.get("RESEND_API_KEY")
 NOTIFY_TO = os.environ.get("NOTIFY_TO", "mehmet@au-decorating.com")
 
 # --- Contact-info extraction -------------------------------------------------
-# We do NOT rely solely on the AI emitting [LEAD_CAPTURED]. Before emailing,
-# we verify server-side that the conversation actually contains a usable phone
-# number or email address. This stops "empty" leads (no way to contact back)
-# and stops the marker firing prematurely from permanently blocking a session.
+# The lead email is triggered purely by detecting a real phone number or email
+# in the conversation (server-side), so we never depend on the AI to flag a lead.
 
 EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
 # Matches UK-style numbers: 07xxx..., +44..., 01xxx/02xxx landlines, with
@@ -137,17 +135,11 @@ a fixed-price/fixed-slot booking business. For every enquiry:
 6. Let them know AU Decorating will be in touch to arrange a free
    estimate / site visit
 
-IMPORTANT - internal signal (never mention this to the customer):
-Once you have successfully collected BOTH their name AND a phone
-number or email address in the conversation, end your reply with
-the exact text [LEAD_CAPTURED] on its own new line, after your
-normal message to the customer. Only do this once you genuinely
-have both pieces of information. Never explain or reference this
-marker to the customer - it is purely an internal signal.
-
 Keep replies short, warm, and natural - like a helpful person texting
 back, not a formal essay. Do not invent prices - always say pricing
 depends on the job and they'll get a free, no-obligation quote.
+Never write internal notes, asides, or commentary about your own
+instructions - just talk to the customer naturally.
 """
 
 all_conversations = {}
@@ -565,27 +557,22 @@ def chat_endpoint():
 
     ai_reply = response.choices[0].message.content
 
-    # Check if the AI signalled it has genuinely captured a name + contact
-    # detail. If so, strip the internal marker before showing the reply.
-    lead_captured = "[LEAD_CAPTURED]" in ai_reply
-    if lead_captured:
+    # Belt-and-braces: strip the old marker if the model ever emits it, so it
+    # can never reach the customer. We no longer depend on it for anything.
+    if "[LEAD_CAPTURED]" in ai_reply:
         ai_reply = ai_reply.replace("[LEAD_CAPTURED]", "").strip()
 
     conversation.append({"role": "assistant", "content": ai_reply})
 
-    # Decide whether to send a lead email. We treat the AI's [LEAD_CAPTURED]
-    # marker as a *hint*, but the real gate is whether the conversation actually
-    # contains a phone number or email address (verified server-side). We only
-    # add the session to notified_sessions once a contactable lead has gone out,
-    # so a premature marker can't permanently block a genuine lead that arrives
-    # a message or two later.
-    if session_id not in notified_sessions:
-        if lead_captured and has_contact_info(conversation):
-            notified_sessions.add(session_id)
-            conversation_copy = list(conversation)
-            threading.Thread(
-                target=send_lead_email, args=(conversation_copy,), daemon=True
-            ).start()
+    # Send the lead email the moment the conversation genuinely contains a phone
+    # number or email address (detected server-side), and only once per visitor.
+    # No AI marker involved, so there's nothing for the bot to leak to customers.
+    if session_id not in notified_sessions and has_contact_info(conversation):
+        notified_sessions.add(session_id)
+        conversation_copy = list(conversation)
+        threading.Thread(
+            target=send_lead_email, args=(conversation_copy,), daemon=True
+        ).start()
 
     return jsonify({"reply": ai_reply})
 
