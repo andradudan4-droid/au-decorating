@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify, render_template_string, session, Response
 import os
+import re
 import uuid
 import threading
 import requests
@@ -18,13 +19,54 @@ client = Groq(
 # Render's free tier blocks direct SMTP (the old Gmail approach), so we
 # use Resend instead, which sends over normal HTTPS - not blocked.
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY")
-NOTIFY_TO = os.environ.get("NOTIFY_TO", "mehemt@au-decorating.com")
+NOTIFY_TO = os.environ.get("NOTIFY_TO", "mehmet@au-decorating.com")
+
+# --- Contact-info extraction -------------------------------------------------
+# We do NOT rely solely on the AI emitting [LEAD_CAPTURED]. Before emailing,
+# we verify server-side that the conversation actually contains a usable phone
+# number or email address. This stops "empty" leads (no way to contact back)
+# and stops the marker firing prematurely from permanently blocking a session.
+
+EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
+# Matches UK-style numbers: 07xxx..., +44..., 01xxx/02xxx landlines, with
+# optional spaces. Digit-count is verified separately to avoid false hits.
+PHONE_RE = re.compile(r"(?:\+44\s?|0)\d(?:[\s-]?\d){8,11}")
+
+
+def _customer_text(conversation):
+    """All of the customer's own messages joined together."""
+    return " ".join(
+        m["content"] for m in conversation if m.get("role") == "user"
+    )
+
+
+def find_email(conversation):
+    match = EMAIL_RE.search(_customer_text(conversation))
+    return match.group(0) if match else None
+
+
+def find_phone(conversation):
+    text = _customer_text(conversation)
+    for candidate in PHONE_RE.findall(text):
+        digits = re.sub(r"\D", "", candidate)
+        if 10 <= len(digits) <= 13:
+            return candidate.strip()
+    return None
+
+
+def has_contact_info(conversation):
+    """True only if we genuinely have a way to contact this person back."""
+    return bool(find_email(conversation) or find_phone(conversation))
+
 
 def send_lead_email(conversation):
-    """Emails the full chat transcript whenever a conversation looks like a real lead."""
+    """Emails the chat transcript once we genuinely have a contactable lead."""
     if not RESEND_API_KEY:
         print("RESEND_API_KEY not set, skipping lead email")
         return
+
+    email = find_email(conversation) or "(none given)"
+    phone = find_phone(conversation) or "(none given)"
 
     transcript_lines = []
     for msg in conversation:
@@ -34,15 +76,28 @@ def send_lead_email(conversation):
             transcript_lines.append(f"Assistant: {msg['content']}")
     transcript = "\n\n".join(transcript_lines)
 
+    # Put the contact details at the very top so they're impossible to miss.
+    summary = (
+        "NEW WEBSITE ENQUIRY - AU Decorating\n"
+        "-----------------------------------\n"
+        f"Phone: {phone}\n"
+        f"Email: {email}\n"
+        "-----------------------------------\n\n"
+        "Full conversation:\n\n"
+    )
+
     try:
         response = requests.post(
             "https://api.resend.com/emails",
             headers={"Authorization": f"Bearer {RESEND_API_KEY}"},
             json={
+                # Once you've verified au-decorating.com in Resend, change this
+                # to e.g. "AU Decorating Website <leads@au-decorating.com>" for
+                # much better deliverability (the resend.dev sender lands in spam).
                 "from": "AU Decorating Website <onboarding@resend.dev>",
                 "to": [NOTIFY_TO],
-                "subject": "New website enquiry - AU Decorating",
-                "text": f"New enquiry from the AU Decorating website chat:\n\n{transcript}",
+                "subject": f"New enquiry - phone: {phone}",
+                "text": summary + transcript,
             },
             timeout=10,
         )
@@ -308,7 +363,7 @@ CONTACT_PAGE = """
     <div class="contact-box">
         <p><strong>Phone:</strong> <a href="tel:07376204980">07376 204980</a></p>
         <p><strong>WhatsApp:</strong> <a href="https://wa.me/447376204980" target="_blank">Chat with us on WhatsApp</a></p>
-        <p><strong>Email:</strong> <a href="mailto:mehemt@au-decorating.com">mehemt@au-decorating.com</a></p>
+        <p><strong>Email:</strong> <a href="mailto:mehmet@au-decorating.com">mehmet@au-decorating.com</a></p>
         <p><strong>Hours:</strong> Available every day, flexible scheduling, plus 24-hour call-out</p>
         <p><strong>Area covered:</strong> Portsmouth and surrounding areas</p>
     </div>
@@ -519,13 +574,19 @@ def chat_endpoint():
 
     conversation.append({"role": "assistant", "content": ai_reply})
 
-    # Once a real lead (name + contact info) has been captured, email the
-    # transcript - but only once per visitor session. Runs in a background
-    # thread so a slow/failed email never holds up the chat reply itself.
-    if session_id not in notified_sessions and lead_captured:
-        notified_sessions.add(session_id)
-        conversation_copy = list(conversation)
-        threading.Thread(target=send_lead_email, args=(conversation_copy,), daemon=True).start()
+    # Decide whether to send a lead email. We treat the AI's [LEAD_CAPTURED]
+    # marker as a *hint*, but the real gate is whether the conversation actually
+    # contains a phone number or email address (verified server-side). We only
+    # add the session to notified_sessions once a contactable lead has gone out,
+    # so a premature marker can't permanently block a genuine lead that arrives
+    # a message or two later.
+    if session_id not in notified_sessions:
+        if lead_captured and has_contact_info(conversation):
+            notified_sessions.add(session_id)
+            conversation_copy = list(conversation)
+            threading.Thread(
+                target=send_lead_email, args=(conversation_copy,), daemon=True
+            ).start()
 
     return jsonify({"reply": ai_reply})
 
