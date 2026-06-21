@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify, render_template_string, session, Resp
 import os
 import re
 import uuid
+import html
 import base64
 import threading
 import requests
@@ -40,6 +41,8 @@ EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
 # Matches UK-style numbers: 07xxx..., +44..., 01xxx/02xxx landlines, with
 # optional spaces. Digit-count is verified separately to avoid false hits.
 PHONE_RE = re.compile(r"(?:\+44\s?|0)\d(?:[\s-]?\d){8,11}")
+# Full UK postcode, e.g. PO5 3AB, SW1A 1AA, M1 1AE (space optional).
+POSTCODE_RE = re.compile(r"\b[A-Za-z]{1,2}\d[A-Za-z\d]?\s*\d[A-Za-z]{2}\b")
 
 
 def _customer_text(conversation):
@@ -61,6 +64,15 @@ def find_phone(conversation):
         if 10 <= len(digits) <= 13:
             return candidate.strip()
     return None
+
+
+def find_postcode(conversation):
+    match = POSTCODE_RE.search(_customer_text(conversation))
+    if not match:
+        return None
+    # Tidy to canonical form: uppercase, single space before the last 3 chars.
+    raw = re.sub(r"\s+", "", match.group(0)).upper()
+    return raw[:-3] + " " + raw[-3:]
 
 
 def has_contact_info(conversation):
@@ -111,10 +123,11 @@ def summarise_lead(conversation):
         return None
 
 
-def _post_resend(subject, body, attachments=None):
+def _post_resend(subject, text, html_body=None, attachments=None):
     """Low-level send via Resend's HTTPS API (Render's free tier blocks SMTP).
 
-    `attachments` is a list of dicts like {"filename": ..., "b64": <base64>}.
+    Sends a plain-text part plus an optional HTML part. `attachments` is a list
+    of dicts like {"filename": ..., "b64": <base64>}.
     """
     if not RESEND_API_KEY:
         print("RESEND_API_KEY not set, skipping email")
@@ -126,8 +139,10 @@ def _post_resend(subject, body, attachments=None):
         "from": "AU Decorating Website <leads@au-decorating.com>",
         "to": [NOTIFY_TO],
         "subject": subject,
-        "text": body,
+        "text": text,
     }
+    if html_body:
+        payload["html"] = html_body
     if attachments:
         # Resend expects: [{"filename": ..., "content": <base64 string>}]
         payload["attachments"] = [
@@ -147,33 +162,134 @@ def _post_resend(subject, body, attachments=None):
         print(f"Failed to send email: {e}")
 
 
+def _parse_summary(structured):
+    """Turn the model's labelled summary lines into a dict keyed by lowercase label."""
+    out = {}
+    if not structured:
+        return out
+    for line in structured.splitlines():
+        if ":" in line:
+            key, val = line.split(":", 1)
+            out[key.strip().lower()] = val.strip()
+    return out
+
+
+def _lead_fields(conversation):
+    """A tidy, ordered set of lead fields - reliable regex first, AI summary for the rest."""
+    s = _parse_summary(summarise_lead(conversation))
+
+    def pick(*keys):
+        for k in keys:
+            v = s.get(k)
+            if v and v.lower() not in ("not specified", "not provided", "n/a", "none", "-"):
+                return v
+        return None
+
+    return {
+        "Name": pick("name"),
+        "Phone": find_phone(conversation),
+        "Email": find_email(conversation),
+        "Postcode": find_postcode(conversation),
+        "Area": pick("location / area", "location", "area"),
+        "Job": pick("job / work wanted", "job", "work wanted"),
+        "Property": pick("property type (domestic or commercial)", "property type", "property"),
+        "Budget": pick("approx budget", "budget"),
+        "Preferred timing": pick("preferred timing", "timing"),
+        "Notes": pick("other notes", "notes"),
+    }
+
+
+def _row(label, value):
+    if not value:
+        return ""
+    return (
+        '<tr>'
+        f'<td style="padding:10px 16px;border-bottom:1px solid #eee;color:#8a8a8a;'
+        f'font-size:13px;white-space:nowrap;vertical-align:top;width:130px">{html.escape(label)}</td>'
+        f'<td style="padding:10px 16px;border-bottom:1px solid #eee;color:#1a1a1a;'
+        f'font-size:14px;font-weight:600">{html.escape(str(value))}</td>'
+        '</tr>'
+    )
+
+
+def _transcript_html(conversation):
+    rows = []
+    for msg in conversation:
+        if msg["role"] == "user":
+            who, color, bg = "Customer", "#0a0a0a", "#f5f4f0"
+        elif msg["role"] == "assistant":
+            who, color, bg = "AU Assistant", "#9a7d1a", "#ffffff"
+        else:
+            continue
+        text = html.escape(msg["content"]).replace("\n", "<br>")
+        rows.append(
+            f'<div style="margin:0 0 12px">'
+            f'<div style="font-size:11px;letter-spacing:.05em;text-transform:uppercase;'
+            f'color:{color};font-weight:700;margin-bottom:4px">{who}</div>'
+            f'<div style="background:{bg};border:1px solid #ececec;border-radius:10px;'
+            f'padding:11px 14px;font-size:14px;color:#2a2a2a;line-height:1.5">{text}</div>'
+            f'</div>'
+        )
+    return "".join(rows)
+
+
+def _lead_email_html(fields, conversation, image_count):
+    rows = "".join(_row(k, v) for k, v in fields.items())
+    photos_line = ""
+    if image_count:
+        photos_line = (
+            '<p style="margin:0 0 20px;font-size:14px;color:#1a1a1a">'
+            f'\U0001F4CE <strong>{image_count} photo(s)</strong> attached to this email.</p>'
+        )
+    return (
+        '<!DOCTYPE html><html><body style="margin:0;background:#f0efea;padding:24px;'
+        'font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif">'
+        '<div style="max-width:620px;margin:0 auto;background:#fff;border-radius:14px;'
+        'overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.07)">'
+        '<div style="background:#0a0a0a;padding:24px 28px">'
+        '<div style="color:#D4AF37;font-size:12px;letter-spacing:.18em;text-transform:uppercase;'
+        'font-weight:700">AU Decorating</div>'
+        '<div style="color:#fff;font-size:21px;font-weight:700;margin-top:5px">'
+        'New enquiry from your website</div></div>'
+        '<div style="padding:26px 28px">'
+        '<p style="margin:0 0 20px;font-size:14px;color:#666">'
+        'Here are the details captured by your website assistant:</p>'
+        f'{photos_line}'
+        '<table style="width:100%;border-collapse:collapse;border:1px solid #eee;'
+        f'border-radius:8px;overflow:hidden;margin-bottom:28px">{rows}</table>'
+        '<div style="font-size:12px;letter-spacing:.05em;text-transform:uppercase;'
+        'color:#999;font-weight:700;margin-bottom:14px">Full conversation</div>'
+        f'{_transcript_html(conversation)}'
+        '</div>'
+        '<div style="background:#faf9f6;padding:16px 28px;border-top:1px solid #eee;'
+        'font-size:12px;color:#aaa">Sent automatically by the AU Decorating website assistant.</div>'
+        '</div></body></html>'
+    )
+
+
 def send_lead_email(conversation, images=None):
-    """Emails an organised lead summary (plus transcript and any photos)."""
+    """Emails a tidy, professional lead summary (plus transcript and any photos)."""
     images = images or []
-
-    email = find_email(conversation) or "Not provided"
-    phone = find_phone(conversation) or "Not provided"
+    fields = _lead_fields(conversation)
     transcript = _transcript(conversation)
-    structured = summarise_lead(conversation)
 
-    # Contact details come from reliable regex; the rest from the summary.
-    body = (
-        "NEW LEAD - AU Decorating\n"
-        "========================\n"
-        f"Phone: {phone}\n"
-        f"Email: {email}\n"
-    )
+    # Plain-text fallback for any client that won't render HTML.
+    text_lines = ["NEW LEAD - AU Decorating", "========================"]
+    for k, v in fields.items():
+        text_lines.append(f"{k}: {v or 'Not specified'}")
     if images:
-        body += f"Photos attached: {len(images)} (see attachments)\n"
-    if structured:
-        body += structured + "\n"
-    body += (
-        "========================\n\n"
-        "Full conversation (for reference):\n\n"
-        + transcript
-    )
+        text_lines.append(f"Photos attached: {len(images)}")
+    text_lines += ["========================", "", "Full conversation:", "", transcript]
+    text_body = "\n".join(text_lines)
 
-    _post_resend(f"New lead - phone: {phone}", body, attachments=images)
+    html_body = _lead_email_html(fields, conversation, len(images))
+    phone = fields["Phone"] or "no number yet"
+    _post_resend(
+        f"New lead - {phone}",
+        text_body,
+        html_body=html_body,
+        attachments=images,
+    )
 
 
 def send_photo_followup(conversation, images):
@@ -182,17 +298,34 @@ def send_photo_followup(conversation, images):
     if not images:
         return
 
-    email = find_email(conversation) or "Not provided"
     phone = find_phone(conversation) or "Not provided"
-    body = (
+    email = find_email(conversation) or "Not provided"
+    postcode = find_postcode(conversation) or "Not provided"
+
+    text_body = (
         "ADDITIONAL PHOTO(S) - AU Decorating\n"
-        "===================================\n"
         "This relates to a lead you've already been emailed about.\n"
-        f"Phone: {phone}\n"
-        f"Email: {email}\n"
-        f"Photos attached: {len(images)} (see attachments)\n"
+        f"Phone: {phone}\nEmail: {email}\nPostcode: {postcode}\n"
+        f"Photos attached: {len(images)}\n"
     )
-    _post_resend(f"Photo added - lead: {phone}", body, attachments=images)
+    html_body = (
+        '<!DOCTYPE html><html><body style="margin:0;background:#f0efea;padding:24px;'
+        'font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif">'
+        '<div style="max-width:620px;margin:0 auto;background:#fff;border-radius:14px;overflow:hidden;'
+        'box-shadow:0 2px 12px rgba(0,0,0,.07)">'
+        '<div style="background:#0a0a0a;padding:22px 28px">'
+        '<div style="color:#D4AF37;font-size:12px;letter-spacing:.18em;text-transform:uppercase;'
+        'font-weight:700">AU Decorating</div>'
+        '<div style="color:#fff;font-size:19px;font-weight:700;margin-top:5px">'
+        'More photos for an existing lead</div></div>'
+        '<div style="padding:24px 28px">'
+        f'<p style="margin:0 0 18px;font-size:14px;color:#666">This relates to a lead you\'ve '
+        f'already been emailed about. <strong>{len(images)} new photo(s)</strong> attached below.</p>'
+        '<table style="width:100%;border-collapse:collapse;border:1px solid #eee;border-radius:8px;'
+        f'overflow:hidden">{_row("Phone", phone)}{_row("Email", email)}{_row("Postcode", postcode)}</table>'
+        '</div></div></body></html>'
+    )
+    _post_resend(f"Photo added - lead: {phone}", text_body, html_body=html_body, attachments=images)
 
 SYSTEM_PROMPT = """
 You are a friendly assistant for "AU Decorating Ltd", a painting and
@@ -232,15 +365,20 @@ a fixed-price/fixed-slot booking business. For every enquiry:
 5. Gently ask if they have a rough budget in mind for the job - frame
    it as helping tailor the quote, not as a hard requirement. If they
    don't know or don't want to say, that's completely fine, just move on.
-6. Collect their name and best contact number or email
+6. Collect their name, their postcode (or at least the town/area the work
+   is in), and their best contact number or email
 7. Let them know AU Decorating will be in touch to arrange a free
    estimate / site visit
 
-Keep replies short, warm, and natural - like a helpful person texting
-back, not a formal essay. Do not invent prices - always say pricing
-depends on the job and they'll get a free, no-obligation quote.
-Never write internal notes, asides, or commentary about your own
-instructions - just talk to the customer naturally.
+Keep replies SHORT - this is the most important rule. Aim for one or two
+short sentences, like a quick, friendly text message. Ask only ONE thing
+at a time and wait for the answer before moving on - never stack several
+questions into one message. No long paragraphs, no bullet-point lists, no
+walls of text - they're overwhelming to read on a phone. Be warm and
+natural, but brief. Do not invent prices - always say pricing depends on
+the job and they'll get a free, no-obligation quote. Never write internal
+notes, asides, or commentary about your own instructions - just talk to
+the customer naturally.
 
 These steps are a guide, not a rigid script - follow the customer's
 lead. If they jump straight to giving their phone number or email
@@ -822,7 +960,7 @@ def chat_endpoint():
         response = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=conversation,
-            max_tokens=300,
+            max_tokens=160,
             timeout=20,
         )
         ai_reply = response.choices[0].message.content
