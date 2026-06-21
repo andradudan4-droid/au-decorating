@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify, render_template_string, session, Resp
 import os
 import re
 import uuid
+import base64
 import threading
 import requests
 from groq import Groq
@@ -10,6 +11,9 @@ app = Flask(__name__)
 app.secret_key = "dev-secret-key-change-this-later"
 app.config["SESSION_COOKIE_SAMESITE"] = "None"
 app.config["SESSION_COOKIE_SECURE"] = True
+# Photos are resized in the browser before upload, so payloads are small.
+# This is a safety cap to reject anything abnormally large.
+app.config["MAX_CONTENT_LENGTH"] = 12 * 1024 * 1024  # 12 MB
 
 client = Groq(
     api_key=os.environ.get("GROQ_API_KEY")
@@ -20,6 +24,13 @@ client = Groq(
 # use Resend instead, which sends over normal HTTPS - not blocked.
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY")
 NOTIFY_TO = os.environ.get("NOTIFY_TO", "mehmet@au-decorating.com")
+
+# --- Photo upload settings ---------------------------------------------------
+# Customers can attach photos of the job; these get emailed with the lead.
+# Resizing happens in the browser, so what reaches us here is already small.
+MAX_IMAGES_PER_SESSION = 6
+ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
+MAX_IMAGE_BYTES = 6 * 1024 * 1024  # per image, after base64 decode
 
 # --- Contact-info extraction -------------------------------------------------
 # The lead email is triggered purely by detecting a real phone number or email
@@ -100,11 +111,45 @@ def summarise_lead(conversation):
         return None
 
 
-def send_lead_email(conversation):
-    """Emails an organised lead summary (plus transcript) once contactable."""
+def _post_resend(subject, body, attachments=None):
+    """Low-level send via Resend's HTTPS API (Render's free tier blocks SMTP).
+
+    `attachments` is a list of dicts like {"filename": ..., "b64": <base64>}.
+    """
     if not RESEND_API_KEY:
-        print("RESEND_API_KEY not set, skipping lead email")
+        print("RESEND_API_KEY not set, skipping email")
         return
+
+    payload = {
+        # Sent from the verified au-decorating.com domain (SPF/DKIM set up in
+        # Resend), so mail lands in the inbox, not spam.
+        "from": "AU Decorating Website <leads@au-decorating.com>",
+        "to": [NOTIFY_TO],
+        "subject": subject,
+        "text": body,
+    }
+    if attachments:
+        # Resend expects: [{"filename": ..., "content": <base64 string>}]
+        payload["attachments"] = [
+            {"filename": a["filename"], "content": a["b64"]} for a in attachments
+        ]
+
+    try:
+        response = requests.post(
+            "https://api.resend.com/emails",
+            headers={"Authorization": f"Bearer {RESEND_API_KEY}"},
+            json=payload,
+            timeout=15,
+        )
+        if response.status_code >= 300:
+            print(f"Resend error: {response.status_code} {response.text}")
+    except Exception as e:
+        print(f"Failed to send email: {e}")
+
+
+def send_lead_email(conversation, images=None):
+    """Emails an organised lead summary (plus transcript and any photos)."""
+    images = images or []
 
     email = find_email(conversation) or "Not provided"
     phone = find_phone(conversation) or "Not provided"
@@ -118,6 +163,8 @@ def send_lead_email(conversation):
         f"Phone: {phone}\n"
         f"Email: {email}\n"
     )
+    if images:
+        body += f"Photos attached: {len(images)} (see attachments)\n"
     if structured:
         body += structured + "\n"
     body += (
@@ -126,24 +173,26 @@ def send_lead_email(conversation):
         + transcript
     )
 
-    try:
-        response = requests.post(
-            "https://api.resend.com/emails",
-            headers={"Authorization": f"Bearer {RESEND_API_KEY}"},
-            json={
-                # Sent from the verified au-decorating.com domain (SPF/DKIM set
-                # up in Resend), so mail lands in the inbox, not spam.
-                "from": "AU Decorating Website <leads@au-decorating.com>",
-                "to": [NOTIFY_TO],
-                "subject": f"New lead - phone: {phone}",
-                "text": body,
-            },
-            timeout=10,
-        )
-        if response.status_code >= 300:
-            print(f"Resend error: {response.status_code} {response.text}")
-    except Exception as e:
-        print(f"Failed to send lead email: {e}")
+    _post_resend(f"New lead - phone: {phone}", body, attachments=images)
+
+
+def send_photo_followup(conversation, images):
+    """If a photo arrives after the lead email was already sent, forward it on
+    so it can't get lost."""
+    if not images:
+        return
+
+    email = find_email(conversation) or "Not provided"
+    phone = find_phone(conversation) or "Not provided"
+    body = (
+        "ADDITIONAL PHOTO(S) - AU Decorating\n"
+        "===================================\n"
+        "This relates to a lead you've already been emailed about.\n"
+        f"Phone: {phone}\n"
+        f"Email: {email}\n"
+        f"Photos attached: {len(images)} (see attachments)\n"
+    )
+    _post_resend(f"Photo added - lead: {phone}", body, attachments=images)
 
 SYSTEM_PROMPT = """
 You are a friendly assistant for "AU Decorating Ltd", a painting and
@@ -186,6 +235,42 @@ instructions - just talk to the customer naturally.
 
 all_conversations = {}
 notified_sessions = set()
+session_images = {}  # session_id -> list of {filename, content_type, b64}
+
+
+def _decode_image_data_url(data_url):
+    """Validate and decode a 'data:image/...;base64,...' string from the browser.
+
+    Returns {"filename", "content_type", "b64"} or None if it's not a valid,
+    allowed, reasonably-sized image.
+    """
+    if not isinstance(data_url, str) or not data_url.startswith("data:"):
+        return None
+    try:
+        header, b64 = data_url.split(",", 1)
+    except ValueError:
+        return None
+    if ";base64" not in header:
+        return None
+
+    content_type = header[len("data:"):].split(";", 1)[0].lower()
+    if content_type not in ALLOWED_IMAGE_TYPES:
+        return None
+
+    try:
+        raw = base64.b64decode(b64, validate=True)
+    except Exception:
+        return None
+    if not raw or len(raw) > MAX_IMAGE_BYTES:
+        return None
+
+    ext = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}[content_type]
+    return {
+        "filename": f"job-photo-{uuid.uuid4().hex[:8]}.{ext}",
+        "content_type": content_type,
+        # Re-encode cleanly (no stray whitespace) for Resend.
+        "b64": base64.b64encode(raw).decode("ascii"),
+    }
 
 BASE_STYLE = """
 <style>
@@ -475,6 +560,12 @@ WIDGET_FRAME = """
         #userInput:focus { border-color: #D4AF37; }
         #sendBtn { border: none; background: #0a0a0a; color: #D4AF37; width: 46px; height: 46px; border-radius: 50%; margin-left: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
         #sendBtn:hover { background: #1f1f1f; }
+        #attachBtn { width: 46px; height: 46px; border-radius: 50%; background: #ECECEC; margin-right: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        #attachBtn:hover { background: #e2e2da; }
+        #attachBtn input { display: none; }
+        #attachBtn.busy { opacity: 0.45; pointer-events: none; }
+        .msg img.photo { max-width: 190px; width: 100%; border-radius: 12px; display: block; }
+        .msg.photo-msg { padding: 5px; background: #0a0a0a; }
     </style>
 </head>
 <body>
@@ -488,6 +579,12 @@ WIDGET_FRAME = """
         </div>
         <div id="chatbox"></div>
         <div id="inputRow">
+            <label id="attachBtn" title="Attach a photo of the job">
+                <input type="file" id="fileInput" accept="image/*" onchange="handleFile(this)">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M21.44 11.05l-9.19 9.19a5 5 0 0 1-7.07-7.07l9.19-9.19a3 3 0 0 1 4.24 4.24l-9.2 9.19a1 1 0 0 1-1.41-1.41l8.49-8.49" stroke="#0a0a0a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </label>
             <input type="text" id="userInput" placeholder="Type a message..." onkeypress="if(event.key==='Enter') sendMessage()">
             <button id="sendBtn" onclick="sendMessage()">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
@@ -525,6 +622,88 @@ WIDGET_FRAME = """
             });
             const data = await response.json();
             addMessage(data.reply, 'bot');
+        }
+
+        function addImageMessage(src) {
+            const chatbox = document.getElementById('chatbox');
+            const div = document.createElement('div');
+            div.className = 'msg user photo-msg';
+            const img = document.createElement('img');
+            img.className = 'photo';
+            img.src = src;
+            div.appendChild(img);
+            chatbox.appendChild(div);
+            chatbox.scrollTop = chatbox.scrollHeight;
+        }
+
+        // Phone photos are huge, so we shrink them in the browser before upload:
+        // longest side capped at 1600px, re-encoded as JPEG. Modern browsers
+        // honour EXIF orientation when drawing to canvas, so photos stay upright.
+        function resizeImage(file) {
+            return new Promise(function (resolve, reject) {
+                const reader = new FileReader();
+                reader.onload = function () {
+                    const img = new Image();
+                    img.onload = function () {
+                        const maxDim = 1600;
+                        let w = img.naturalWidth, h = img.naturalHeight;
+                        if (Math.max(w, h) > maxDim) {
+                            if (w >= h) { h = Math.round(h * maxDim / w); w = maxDim; }
+                            else { w = Math.round(w * maxDim / h); h = maxDim; }
+                        }
+                        const canvas = document.createElement('canvas');
+                        canvas.width = w; canvas.height = h;
+                        const ctx = canvas.getContext('2d');
+                        ctx.fillStyle = '#ffffff';      // flatten any transparency
+                        ctx.fillRect(0, 0, w, h);
+                        ctx.drawImage(img, 0, 0, w, h);
+                        resolve(canvas.toDataURL('image/jpeg', 0.82));
+                    };
+                    img.onerror = function () { reject(new Error('decode')); };
+                    img.src = reader.result;
+                };
+                reader.onerror = function () { reject(new Error('read')); };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        async function handleFile(input) {
+            const file = input.files && input.files[0];
+            input.value = '';                 // allow re-selecting the same file
+            if (!file) return;
+            if (!file.type || file.type.indexOf('image/') !== 0) {
+                addMessage("That doesn't look like a photo - please choose an image.", 'bot');
+                return;
+            }
+
+            const attachBtn = document.getElementById('attachBtn');
+            attachBtn.classList.add('busy');
+
+            let dataUrl;
+            try {
+                dataUrl = await resizeImage(file);
+            } catch (e) {
+                attachBtn.classList.remove('busy');
+                addMessage("Sorry, I couldn't read that image. If it's a HEIC photo from an iPhone, try saving it as a JPG first.", 'bot');
+                return;
+            }
+
+            addImageMessage(dataUrl);
+
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ image: dataUrl }),
+                    credentials: 'same-origin'
+                });
+                const data = await response.json();
+                addMessage(data.reply, 'bot');
+            } catch (e) {
+                addMessage("Sorry, the photo didn't upload - please try again in a moment.", 'bot');
+            } finally {
+                attachBtn.classList.remove('busy');
+            }
         }
     </script>
 </body>
@@ -612,11 +791,62 @@ def chat_endpoint():
     if session_id not in notified_sessions and has_contact_info(conversation):
         notified_sessions.add(session_id)
         conversation_copy = list(conversation)
+        images_copy = list(session_images.get(session_id, []))
         threading.Thread(
-            target=send_lead_email, args=(conversation_copy,), daemon=True
+            target=send_lead_email,
+            args=(conversation_copy, images_copy),
+            daemon=True,
         ).start()
 
     return jsonify({"reply": ai_reply})
+
+
+@app.route("/upload", methods=["POST"])
+def upload_endpoint():
+    session_id = session.get("session_id")
+    if not session_id:
+        session_id = str(uuid.uuid4())
+        session["session_id"] = session_id
+
+    if session_id not in all_conversations:
+        all_conversations[session_id] = [{"role": "system", "content": SYSTEM_PROMPT}]
+    conversation = all_conversations[session_id]
+
+    data = request.get_json(silent=True) or {}
+    image = _decode_image_data_url(data.get("image", ""))
+    if image is None:
+        return (
+            jsonify({"reply": "Sorry, I couldn't read that image. Please try a JPG or PNG photo."}),
+            400,
+        )
+
+    images = session_images.setdefault(session_id, [])
+    if len(images) >= MAX_IMAGES_PER_SESSION:
+        return jsonify({
+            "reply": "Thanks - that's plenty of photos for now. Leave your name and number and we'll take a look and get you a quote."
+        })
+
+    images.append(image)
+
+    # Keep the transcript (and the AI) aware that a photo came in.
+    conversation.append({"role": "user", "content": "(Customer attached a photo of the job)"})
+    reply = (
+        "Thanks, got your photo - that really helps us picture the job. "
+        "Feel free to add more, or leave your name and number and we'll get "
+        "you a free quote."
+    )
+    conversation.append({"role": "assistant", "content": reply})
+
+    # If we've already emailed this lead, forward the new photo as a follow-up
+    # so it doesn't get lost.
+    if session_id in notified_sessions:
+        threading.Thread(
+            target=send_photo_followup,
+            args=(list(conversation), [image]),
+            daemon=True,
+        ).start()
+
+    return jsonify({"reply": reply})
 
 
 if __name__ == "__main__":
