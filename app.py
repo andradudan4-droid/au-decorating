@@ -432,6 +432,19 @@ def _decode_image_data_url(data_url):
     }
 
 BASE_STYLE = """
+<link rel="icon" type="image/webp" href="/static/images/logo.webp">
+<meta name="theme-color" content="#0a0a0a">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="AU Decorating Ltd">
+<meta property="og:title" content="AU Decorating Ltd - Portsmouth Painters & Decorators">
+<meta property="og:description" content="10/10 rated painters & decorators in Portsmouth. Interior & exterior painting, flooring, tiling, paving & driveways. Free, no-obligation quotes.">
+<meta property="og:url" content="https://au-decorating.com">
+<meta property="og:image" content="https://au-decorating.com/static/images/exterior-terrace-2.webp">
+<meta name="twitter:card" content="summary_large_image">
+<!-- Analytics: privacy-friendly, no cookies. Create a free account at plausible.io,
+     add the domain "au-decorating.com", and stats start flowing - no code change needed.
+     Prefer Google Analytics instead? Tell Claude your G-XXXX ID and it'll swap this out. -->
+<script defer data-domain="au-decorating.com" src="https://plausible.io/js/script.js"></script>
 <style>
     * { box-sizing: border-box; }
     body { font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif; margin: 0; color: #2a2a2a; background: #fff; }
@@ -500,7 +513,9 @@ NAV = """
 
 FOOTER = """
 <footer>
-    AU Decorating Ltd &middot; Portsmouth, UK &middot; Free estimates, every day, flexible scheduling
+    <div style="margin-bottom:10px;">AU Decorating Ltd &middot; Portsmouth, UK &middot; Free estimates, every day, flexible scheduling</div>
+    <div style="font-size:13px;opacity:.8;margin-bottom:10px;">Covering Portsmouth, Southsea, Fareham, Gosport, Havant, Waterlooville, Cosham, Portchester and surrounding areas.</div>
+    <div style="font-size:13px;"><a href="/privacy" style="color:#D4AF37;text-decoration:none;">Privacy Policy</a></div>
 </footer>
 """
 
@@ -518,6 +533,7 @@ HOME_PAGE = """
     <p>Interior &amp; exterior painting, flooring, tiling, paving and driveways.
     Free, no-obligation quotes - flexible scheduling, every day.</p>
     <a class="btn" href="https://wa.me/447376204980" target="_blank">Get a Free Quote on WhatsApp</a>
+    <a class="btn" href="tel:+447376204980" style="background:transparent;color:#D4AF37;border:1px solid #D4AF37;margin-left:10px;">Call us now</a>
 </div>
 <div class="section">
     <img class="feature-img" src="/static/images/exterior-terrace-2.webp" alt="Recently painted terrace house exterior">
@@ -642,7 +658,42 @@ CONTACT_PAGE = """
         <p><strong>WhatsApp:</strong> <a href="https://wa.me/447376204980" target="_blank">Chat with us on WhatsApp</a></p>
         <p><strong>Email:</strong> <a href="mailto:mehmet@au-decorating.com">mehmet@au-decorating.com</a></p>
         <p><strong>Hours:</strong> Available every day, flexible scheduling, plus 24-hour call-out</p>
-        <p><strong>Area covered:</strong> Portsmouth and surrounding areas</p>
+        <p><strong>Area covered:</strong> Portsmouth, Southsea, Fareham, Gosport, Havant, Waterlooville, Cosham, Portchester and surrounding areas</p>
+    </div>
+</div>
+""" + FOOTER + WIDGET_INCLUDE + """
+</body></html>
+"""
+
+PRIVACY_PAGE = """
+<!DOCTYPE html><html><head><title>Privacy Policy - AU Decorating Ltd</title>""" + BASE_STYLE + """</head><body>
+""" + NAV + """
+<div class="section" style="max-width:760px;">
+    <h2>Privacy Policy</h2>
+    <p class="sub">How AU Decorating Ltd looks after the information you share with us.</p>
+    <div style="color:#333;line-height:1.7;font-size:15px;">
+        <p>This policy explains what we collect when you contact us through this website, why we collect it, and your rights over it. AU Decorating Ltd (&ldquo;we&rdquo;, &ldquo;us&rdquo;) is the data controller.</p>
+
+        <h3 style="color:#0a0a0a;margin-top:28px;">What we collect</h3>
+        <p>When you use the chat assistant or get in touch, we collect only what you choose to give us &mdash; typically your name, phone number or email, your postcode or area, details about the job you&rsquo;d like quoted, and any photos you send us of the work.</p>
+
+        <h3 style="color:#0a0a0a;margin-top:28px;">Why we collect it &amp; our lawful basis</h3>
+        <p>We use your details solely to respond to your enquiry, prepare a quote, and arrange any work you go ahead with. Our lawful basis is taking steps at your request before entering into a contract, and our legitimate interest in responding to enquiries about our services.</p>
+
+        <h3 style="color:#0a0a0a;margin-top:28px;">Who we share it with</h3>
+        <p>We don&rsquo;t sell your data or use it for advertising. To run the website assistant, your messages are processed by our AI provider (Groq) to generate replies, and your enquiry is emailed to us through Resend. These providers process the information only to deliver that service. We may also contact you by phone, text, WhatsApp or email to follow up on your enquiry.</p>
+
+        <h3 style="color:#0a0a0a;margin-top:28px;">How long we keep it</h3>
+        <p>We keep enquiry details only as long as needed to deal with your enquiry and any work that follows, and for our normal business and tax records, after which they are deleted.</p>
+
+        <h3 style="color:#0a0a0a;margin-top:28px;">Cookies</h3>
+        <p>The site uses a single essential cookie to remember your chat session. We don&rsquo;t use advertising or tracking cookies. We use privacy-friendly, cookie-free analytics to count visits.</p>
+
+        <h3 style="color:#0a0a0a;margin-top:28px;">Your rights</h3>
+        <p>You can ask us to see, correct, or delete the information we hold about you, or to stop using it. Just get in touch and we&rsquo;ll sort it. You also have the right to complain to the UK&rsquo;s Information Commissioner&rsquo;s Office (ico.org.uk).</p>
+
+        <h3 style="color:#0a0a0a;margin-top:28px;">Contact</h3>
+        <p>For anything about your data, email <a href="mailto:mehmet@au-decorating.com" style="color:#b8932f;">mehmet@au-decorating.com</a> or call <a href="tel:07376204980" style="color:#b8932f;">07376 204980</a>.</p>
     </div>
 </div>
 """ + FOOTER + WIDGET_INCLUDE + """
@@ -927,6 +978,11 @@ def gallery():
 def contact():
     ensure_session()
     return render_template_string(CONTACT_PAGE)
+
+@app.route("/privacy")
+def privacy():
+    ensure_session()
+    return render_template_string(PRIVACY_PAGE)
 
 @app.route("/widget.js")
 def widget_js():
