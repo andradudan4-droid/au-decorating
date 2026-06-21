@@ -525,6 +525,43 @@ HOME_PAGE = """
 <!DOCTYPE html><html><head><title>AU Decorating Ltd - Portsmouth Painters & Decorators</title>
 <meta name="description" content="AU Decorating Ltd - 10/10 rated painters and decorators in Portsmouth. Interior and exterior painting, flooring, tiling, paving and driveways. Free quotes, every day.">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": ["LocalBusiness", "HousePainter"],
+  "name": "AU Decorating Ltd",
+  "image": "https://au-decorating.com/static/images/exterior-terrace-2.webp",
+  "logo": "https://au-decorating.com/static/images/logo.webp",
+  "url": "https://au-decorating.com",
+  "telephone": "+447376204980",
+  "email": "mehmet@au-decorating.com",
+  "priceRange": "\\u00a3\\u00a3",
+  "description": "10/10 rated painters and decorators in Portsmouth. Interior and exterior painting, decorating, flooring, tiling, paving, driveways and anti-vandal coatings. Domestic and commercial. Free, no-obligation quotes.",
+  "address": {
+    "@type": "PostalAddress",
+    "addressLocality": "Portsmouth",
+    "addressRegion": "Hampshire",
+    "addressCountry": "GB"
+  },
+  "areaServed": [
+    {"@type": "City", "name": "Portsmouth"},
+    {"@type": "City", "name": "Southsea"},
+    {"@type": "City", "name": "Fareham"},
+    {"@type": "City", "name": "Gosport"},
+    {"@type": "City", "name": "Havant"},
+    {"@type": "City", "name": "Waterlooville"},
+    {"@type": "City", "name": "Cosham"},
+    {"@type": "City", "name": "Portchester"}
+  ],
+  "aggregateRating": {
+    "@type": "AggregateRating",
+    "ratingValue": "10",
+    "bestRating": "10",
+    "ratingCount": "45"
+  },
+  "sameAs": ["https://www.checkatrade.com/trades/audecoratinglimited"]
+}
+</script>
 """ + BASE_STYLE + """</head><body>
 """ + NAV + """
 <div class="hero">
