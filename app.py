@@ -5,6 +5,7 @@ import uuid
 import html
 import base64
 import threading
+import time
 import requests
 from groq import Groq
 
@@ -121,7 +122,7 @@ actually said; write "Not specified" if they didn't say. Keep each line short.
 Name:
 Job / work wanted:
 Property type (domestic or commercial):
-Approx budget:
+Approx budget (in GBP £; note if it's a total or a per-room / per-m2 rate):
 Preferred timing:
 Urgency (1-5 where 1=no rush, 5=urgent - infer from what they said):
 Location / area:
@@ -430,7 +431,9 @@ CONVERSATION FLOW — work through these one at a time, in order:
    drop them in here with the paperclip — makes it easier for Mehmet to quote.
    Or we can just arrange a visit if that's easier."
 5. Ask for a rough budget — frame it as helpful for tailoring the quote. If they
-   don't want to say, that's fine, just move on.
+   don't want to say, that's fine, just move on. When they do give a figure,
+   note whether it's their total budget or a per-room / per-m2 rate, and keep
+   it in pounds.
    BUDGET SANITY: If their budget seems very low for what they've described
    (e.g. £800 for 30m² of marble tiling in a commercial space), gently flag it
    without being blunt. Something like: "Just so you know, a job like that would
@@ -440,9 +443,14 @@ CONVERSATION FLOW — work through these one at a time, in order:
 6. Ask how urgent it is — something like: "How soon are you looking to get this
    done? Is it fairly urgent or no particular rush?" Their answer will be passed
    to Mehmet so he knows how quickly to get back.
-7. Get their name, postcode or area, and best contact number or email.
+7. Get their name, postcode or area, and best contact number or email. When
+   they give a phone number, read it straight back to confirm you typed it
+   right - e.g. "Got it, 07700 900123 - that the best number to reach you on?"
+   If they correct it, use the corrected one. A wrong number means a lost job,
+   so always confirm it.
 8. Once you have at minimum (name + contact + job + area), wrap up warmly and
-   let them know Mehmet will be in touch about a free estimate.
+   confirm their enquiry has been sent over to Mehmet, who'll be in touch about
+   a free estimate - usually the same day.
 
 Only send the [[READY]] signal (step 8) after you've genuinely finished
 collecting all the above — don't send it the moment someone gives their number.
@@ -455,6 +463,7 @@ Never include it mid-conversation or before you're genuinely done.
 
 all_conversations = {}
 notified_sessions = set()
+chat_activity = {}  # session_id -> [timestamps] for rate limiting
 session_images = {}  # session_id -> list of {filename, content_type, b64}
 
 
@@ -799,6 +808,22 @@ HOME_PAGE = """
   </div>
 </section>
 
+<section class="band" id="about">
+  <div class="wrap" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:40px;align-items:center;">
+    <div>
+      <span class="eyebrow">Meet the team</span>
+      <div class="rule"></div>
+      <h2 class="title serif">Run by Mehmet, not a call centre</h2>
+      <p class="sub" style="margin-bottom:14px">AU Decorating is owned and run by Mehmet Yildiz, a Portsmouth-based painter &amp; decorator. When you get in touch, you deal directly with the person doing the work &mdash; not a faceless company.</p>
+      <p class="sub">Established in 2023, AU Decorating has earned a 10/10 rating from 45+ verified Checkatrade reviews for turning up on time, working tidily, and finishing to a high standard on both domestic and commercial jobs.</p>
+    </div>
+    <div style="text-align:center">
+      <img src="/static/images/mehmet.jpg" onerror="this.onerror=null;this.src='/static/images/logo.png';this.style.maxWidth='220px';" alt="Mehmet Yildiz, AU Decorating" style="width:100%;max-width:360px;border-radius:16px;border:1px solid var(--line)">
+      <div style="color:var(--mut);font-size:13px;margin-top:10px">Mehmet Yildiz &middot; Founder</div>
+    </div>
+  </div>
+</section>
+
 <section class="band band--panel" id="reviews">
   <div class="wrap">
     <div class="head">
@@ -1070,6 +1095,7 @@ WIDGET_FRAME = """
                     <path d="M21.44 11.05l-9.19 9.19a5 5 0 0 1-7.07-7.07l9.19-9.19a3 3 0 0 1 4.24 4.24l-9.2 9.19a1 1 0 0 1-1.41-1.41l8.49-8.49" stroke="#0a0a0a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
             </label>
+            <input type="text" id="hpField" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;">
             <input type="text" id="userInput" placeholder="Type a message..." onkeypress="if(event.key==='Enter') sendMessage()">
             <button id="sendBtn" onclick="sendMessage()">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
@@ -1119,7 +1145,7 @@ WIDGET_FRAME = """
                 const response = await fetch('/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message: message }),
+                    body: JSON.stringify({ message: message, website: (document.getElementById('hpField')||{}).value || '' }),
                     credentials: 'same-origin'
                 });
                 const data = await response.json();
@@ -1276,9 +1302,26 @@ def chat_endpoint():
     conversation = all_conversations[session_id]
 
     data = request.get_json(silent=True) or {}
+
+    # Honeypot: a hidden field real visitors never see or fill. If it's populated,
+    # it's almost certainly a bot - quietly stop before spending Groq/Resend.
+    if (data.get("website") or "").strip():
+        return jsonify({"reply": "Thanks!"})
+
     user_message = (data.get("message") or "").strip()
     if not user_message:
         return jsonify({"reply": "Sorry, I didn't catch that - could you type that again?"})
+
+    # Per-session rate limiting to protect against abuse running up Groq/Resend
+    # cost: max 20 messages a minute, plus a hard cap per visitor.
+    now = time.time()
+    recent = [t for t in chat_activity.get(session_id, []) if now - t < 60]
+    if len(recent) >= 20:
+        return jsonify({"reply": "You're sending messages very quickly - give it a few seconds and try again."})
+    if len(conversation) >= 60:
+        return jsonify({"reply": "Thanks for all the detail! Drop your name and number and Mehmet will pick this up with you personally."})
+    recent.append(now)
+    chat_activity[session_id] = recent
 
     conversation.append({"role": "user", "content": user_message})
 
