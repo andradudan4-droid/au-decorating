@@ -80,6 +80,21 @@ def has_contact_info(conversation):
     return bool(find_email(conversation) or find_phone(conversation))
 
 
+# Phrases that signal the customer is wrapping up - used only as a safety net so
+# a lead is never lost if the assistant forgets its closing tag.
+CLOSING_RE = re.compile(
+    r"\b(no longer interested|not interested|no thanks|no thank you|"
+    r"that'?s all|that'?s it|that'?s everything|nothing else|all good|"
+    r"that'?s great thank|thanks that'?s|goodbye|bye for now|no more|"
+    r"i'?m good|im good)\b",
+    re.I,
+)
+
+
+def _looks_like_closing(text):
+    return bool(CLOSING_RE.search(text or ""))
+
+
 def _transcript(conversation):
     lines = []
     for msg in conversation:
@@ -274,18 +289,25 @@ def send_lead_email(conversation, images=None):
     transcript = _transcript(conversation)
 
     # Plain-text fallback for any client that won't render HTML.
+    # Plain-text fallback for any client that won't render HTML. Only show
+    # fields we actually have, so it stays clean.
     text_lines = ["NEW LEAD - AU Decorating", "========================"]
     for k, v in fields.items():
-        text_lines.append(f"{k}: {v or 'Not specified'}")
+        if v:
+            text_lines.append(f"{k}: {v}")
     if images:
         text_lines.append(f"Photos attached: {len(images)}")
     text_lines += ["========================", "", "Full conversation:", "", transcript]
     text_body = "\n".join(text_lines)
 
     html_body = _lead_email_html(fields, conversation, len(images))
-    phone = fields["Phone"] or "no number yet"
+
+    # Scannable subject: "New lead - Name · Area · 07..."
+    contact = fields["Phone"] or fields["Email"] or "no number yet"
+    bits = [b for b in (fields["Name"], fields["Area"] or fields["Postcode"]) if b]
+    subject = "New lead - " + (" \u00b7 ".join(bits + [contact]) if bits else contact)
     _post_resend(
-        f"New lead - {phone}",
+        subject,
         text_body,
         html_body=html_body,
         attachments=images,
@@ -387,9 +409,27 @@ you've got their details, and then gently pick up whatever you still
 haven't covered. In particular, don't skip the photos-or-visit offer
 just because they gave their number early - it's genuinely useful, so
 still invite them to send a couple of photos with the paperclip or
-arrange a visit. Only wrap up once you have at least their name and a
-contact number or email; if you still don't have a way to reach them,
-warmly ask for it before closing.
+arrange a visit.
+
+Don't wrap up too early. Even after someone gives a phone number or
+email, keep gently gathering the rest, one question at a time -
+especially whether it's domestic or commercial, the area/postcode, and
+a rough budget - because Mehmet needs those to quote properly. If you
+still don't have a way to reach them, warmly ask for it before closing.
+
+When you've gathered what you reasonably can (at a minimum: their name,
+a contact number or email, what the job is, and the area), send one
+short, warm closing message letting them know AU Decorating will be in
+touch to arrange a free estimate. Then, on a brand-new line at the very
+end of that closing message, output this exact tag and nothing after
+it: [[READY]]
+
+The [[READY]] tag is an internal signal only - it is removed
+automatically and the customer never sees it. Only ever include it in
+your final wrap-up message, never earlier in the chat, and never just
+because someone gave their number early. Keep gathering the rest first
+(especially domestic/commercial, area and budget), then add the tag
+when you're genuinely wrapping up.
 """
 
 all_conversations = {}
@@ -1231,25 +1271,31 @@ def chat_endpoint():
             "reply": "Sorry, I had a brief hiccup there - could you send that again?"
         })
 
-    # Belt-and-braces: strip the old marker if the model ever emits it, so it
-    # can never reach the customer. We no longer depend on it for anything.
-    if "[LEAD_CAPTURED]" in ai_reply:
-        ai_reply = ai_reply.replace("[LEAD_CAPTURED]", "").strip()
+    # Strip any internal signal tags so they can never reach the customer.
+    lead_ready = bool(re.search(r"\[\[?\s*READY\s*\]?\]", ai_reply, re.I))
+    ai_reply = re.sub(r"\[\[?\s*READY\s*\]?\]", "", ai_reply)
+    ai_reply = ai_reply.replace("[LEAD_CAPTURED]", "").strip()
+    if not ai_reply:
+        ai_reply = ("Thanks - that's everything we need for now. AU Decorating "
+                    "will be in touch shortly to arrange your free estimate.")
 
     conversation.append({"role": "assistant", "content": ai_reply})
 
-    # Send the lead email the moment the conversation genuinely contains a phone
-    # number or email address (detected server-side), and only once per visitor.
-    # No AI marker involved, so there's nothing for the bot to leak to customers.
+    # Only email once the assistant has actually finished gathering the details
+    # (it signals this with the internal READY tag) - so budget, area and job
+    # type make it in, instead of firing the instant a phone number appears.
+    # The closing-phrase and long-chat checks are safety nets so a lead is never
+    # lost if the tag is missed. Sent at most once per visitor.
     if session_id not in notified_sessions and has_contact_info(conversation):
-        notified_sessions.add(session_id)
-        conversation_copy = list(conversation)
-        images_copy = list(session_images.get(session_id, []))
-        threading.Thread(
-            target=send_lead_email,
-            args=(conversation_copy, images_copy),
-            daemon=True,
-        ).start()
+        if lead_ready or _looks_like_closing(user_message) or len(conversation) >= 16:
+            notified_sessions.add(session_id)
+            conversation_copy = list(conversation)
+            images_copy = list(session_images.get(session_id, []))
+            threading.Thread(
+                target=send_lead_email,
+                args=(conversation_copy, images_copy),
+                daemon=True,
+            ).start()
 
     return jsonify({"reply": ai_reply})
 
