@@ -39,8 +39,9 @@ MAX_IMAGE_BYTES = 6 * 1024 * 1024  # per image, after base64 decode
 
 EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
 # Matches UK-style numbers: 07xxx..., +44..., 01xxx/02xxx landlines, with
-# optional spaces. Digit-count is verified separately to avoid false hits.
-PHONE_RE = re.compile(r"(?:\+44\s?|0)\d(?:[\s-]?\d){8,11}")
+# optional spaces/dashes. Digit-count is verified separately to avoid false hits.
+# We require a word boundary before to avoid matching partial numbers in longer strings.
+PHONE_RE = re.compile(r"(?<!\d)(?:\+44[\s-]?|0)[\d](?:[\s-]?\d){8,10}(?!\d)")
 # Full UK postcode, e.g. PO5 3AB, SW1A 1AA, M1 1AE (space optional).
 POSTCODE_RE = re.compile(r"\b[A-Za-z]{1,2}\d[A-Za-z\d]?\s*\d[A-Za-z]{2}\b")
 
@@ -60,9 +61,16 @@ def find_email(conversation):
 def find_phone(conversation):
     text = _customer_text(conversation)
     for candidate in PHONE_RE.findall(text):
+        # Strip all whitespace/dashes, then reformat cleanly
         digits = re.sub(r"\D", "", candidate)
-        if 10 <= len(digits) <= 13:
-            return candidate.strip()
+        if 10 <= len(digits) <= 12:
+            # Normalise to standard UK format: 07xxx xxxxxx or +44 7xxx xxxxxx
+            if digits.startswith("44"):
+                digits = "0" + digits[2:]
+            # Format as two groups: first 5 digits then last 6
+            if len(digits) == 11:
+                return f"{digits[:5]} {digits[5:]}"
+            return digits
     return None
 
 
@@ -116,6 +124,7 @@ Job / work wanted:
 Property type (domestic or commercial):
 Approx budget:
 Preferred timing:
+Urgency (1-5 where 1=no rush, 5=urgent - infer from what they said):
 Location / area:
 Other notes:"""
 
@@ -210,6 +219,7 @@ def _lead_fields(conversation):
         "Property": pick("property type (domestic or commercial)", "property type", "property"),
         "Budget": pick("approx budget", "budget"),
         "Preferred timing": pick("preferred timing", "timing"),
+        "Urgency": pick("urgency (1-5 where 1=no rush, 5=urgent - infer from what they said)", "urgency"),
         "Notes": pick("other notes", "notes"),
     }
 
@@ -248,7 +258,35 @@ def _transcript_html(conversation):
     return "".join(rows)
 
 
+def _urgency_badge(urgency_str):
+    """Return an HTML urgency badge based on the 1-5 score."""
+    if not urgency_str:
+        return ""
+    # Extract just the digit if present
+    m = re.search(r"[1-5]", str(urgency_str))
+    if not m:
+        return ""
+    score = int(m.group(0))
+    colours = {
+        1: ("#e8f5e9", "#2e7d32", "1 — No rush"),
+        2: ("#f1f8e9", "#558b2f", "2 — Low"),
+        3: ("#fff8e1", "#f57f17", "3 — Moderate"),
+        4: ("#fff3e0", "#e65100", "4 — Fairly urgent"),
+        5: ("#ffebee", "#b71c1c", "5 — URGENT — reply ASAP"),
+    }
+    bg, fg, label = colours.get(score, ("#f5f5f5", "#555", str(score)))
+    return (
+        f'<div style="margin:0 0 20px">'
+        f'<div style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;'
+        f'color:#999;font-weight:700;margin-bottom:6px">Urgency</div>'
+        f'<span style="display:inline-block;background:{bg};color:{fg};border:1px solid {fg};'
+        f'border-radius:999px;padding:5px 14px;font-size:13px;font-weight:700">'
+        f'{label}</span></div>'
+    )
+
+
 def _lead_email_html(fields, conversation, image_count):
+    urgency_val = fields.pop("Urgency", None)
     rows = "".join(_row(k, v) for k, v in fields.items())
     photos_line = ""
     if image_count:
@@ -256,6 +294,7 @@ def _lead_email_html(fields, conversation, image_count):
             '<p style="margin:0 0 20px;font-size:14px;color:#1a1a1a">'
             f'\U0001F4CE <strong>{image_count} photo(s)</strong> attached to this email.</p>'
         )
+    urgency_html = _urgency_badge(urgency_val)
     return (
         '<!DOCTYPE html><html><body style="margin:0;background:#f0efea;padding:24px;'
         'font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif">'
@@ -269,6 +308,7 @@ def _lead_email_html(fields, conversation, image_count):
         '<div style="padding:26px 28px">'
         '<p style="margin:0 0 20px;font-size:14px;color:#666">'
         'Here are the details captured by your website assistant:</p>'
+        f'{urgency_html}'
         f'{photos_line}'
         '<table style="width:100%;border-collapse:collapse;border:1px solid #eee;'
         f'border-radius:8px;overflow:hidden;margin-bottom:28px">{rows}</table>'
@@ -277,7 +317,9 @@ def _lead_email_html(fields, conversation, image_count):
         f'{_transcript_html(conversation)}'
         '</div>'
         '<div style="background:#faf9f6;padding:16px 28px;border-top:1px solid #eee;'
-        'font-size:12px;color:#aaa">Sent automatically by the AU Decorating website assistant.</div>'
+        'font-size:12px;color:#aaa">Sent automatically by the AU Decorating website assistant. '
+        'AU Decorating Limited &middot; Company No. 14912651 &middot; '
+        '554 Hertford Road, Enfield, EN3 5ST</div>'
         '</div></body></html>'
     )
 
@@ -289,8 +331,6 @@ def send_lead_email(conversation, images=None):
     transcript = _transcript(conversation)
 
     # Plain-text fallback for any client that won't render HTML.
-    # Plain-text fallback for any client that won't render HTML. Only show
-    # fields we actually have, so it stays clean.
     text_lines = ["NEW LEAD - AU Decorating", "========================"]
     for k, v in fields.items():
         if v:
@@ -302,10 +342,15 @@ def send_lead_email(conversation, images=None):
 
     html_body = _lead_email_html(fields, conversation, len(images))
 
-    # Scannable subject: "New lead - Name · Area · 07..."
-    contact = fields["Phone"] or fields["Email"] or "no number yet"
-    bits = [b for b in (fields["Name"], fields["Area"] or fields["Postcode"]) if b]
-    subject = "New lead - " + (" \u00b7 ".join(bits + [contact]) if bits else contact)
+    # Scannable subject: urgency flag + "New lead - Name · Area · 07..."
+    urgency_raw = fields.get("Urgency", "")
+    urgency_m = re.search(r"[1-5]", str(urgency_raw)) if urgency_raw else None
+    urgency_score = int(urgency_m.group(0)) if urgency_m else 0
+    urgent_prefix = "🔴 URGENT — " if urgency_score >= 5 else ("🟠 " if urgency_score >= 4 else "")
+
+    contact = fields.get("Phone") or fields.get("Email") or "no number yet"
+    bits = [b for b in (fields.get("Name"), fields.get("Area") or fields.get("Postcode")) if b]
+    subject = urgent_prefix + "New lead - " + (" \u00b7 ".join(bits + [contact]) if bits else contact)
     _post_resend(
         subject,
         text_body,
@@ -350,86 +395,63 @@ def send_photo_followup(conversation, images):
     _post_resend(f"Photo added - lead: {phone}", text_body, html_body=html_body, attachments=images)
 
 SYSTEM_PROMPT = """
-You are a friendly assistant for "AU Decorating Ltd", a painting and
-decorating company based in Portsmouth, UK, run by Mehmet Yildiz.
+You are the virtual assistant for AU Decorating Ltd, a painting and decorating
+company based in Portsmouth, run by Mehmet Yildiz. You're the first point of
+contact for new enquiries.
 
-Facts about the business:
-- 10/10 rating from 45+ reviews on Checkatrade
-- Services: interior and exterior painting, decorating, flooring,
-  tiling, paving, driveway installation, and anti-vandal coatings.
-  Both domestic and commercial work.
-- They offer FREE estimates / quotes - there are no fixed prices,
-  since every job depends on the size and scope of the work.
-- Available every day with flexible scheduling, plus 24-hour call-out.
+About the business:
+- 10/10 rating from 45+ verified reviews on Checkatrade
+- Services: interior & exterior painting, decorating, flooring, tiling, paving,
+  driveway installation, anti-vandal coatings. Domestic and commercial.
+- Free estimates — pricing depends on the job, so there are no fixed prices.
+- Available every day, flexible scheduling, 24-hour call-out.
 - Insurance work undertaken.
-- Known for being professional, punctual, fast, and detail-oriented -
-  customers often mention them going the extra mile and finishing
-  quickly without compromising quality.
+- Company No. 14912651 (AU Decorating Limited, incorporated 3 June 2023)
 
-YOUR JOB is to be a friendly first point of contact and capture
-enquiries properly, since this is a quote-based trade business, not
-a fixed-price/fixed-slot booking business. For every enquiry:
-1. Find out what kind of job they need (e.g. painting a room,
-   flooring, tiling, exterior work, etc.)
-2. Ask roughly what the property/job involves (e.g. how many rooms,
-   approximate size, any specifics)
-3. To help us quote accurately, ask whether they'd like to send a
-   couple of photos of the job or would prefer a visit instead. Make
-   clear there's a photo/attachment button (the paperclip) right here
-   in the chat they can use to send pictures, and that either option is
-   completely fine - whatever's easiest for them. For example:
-   "Could you please send a couple of photos of the job? You can attach
-   them right here in the chat using the paperclip. Or if you'd prefer,
-   we can arrange a visit to take a look instead - whatever suits you."
-   If they send photos, thank them warmly. If they'd rather have a
-   visit, that's great too - just reassure them and carry on.
-4. Ask if it's a domestic or commercial job
-5. Gently ask if they have a rough budget in mind for the job - frame
-   it as helping tailor the quote, not as a hard requirement. If they
-   don't know or don't want to say, that's completely fine, just move on.
-6. Collect their name, their postcode (or at least the town/area the work
-   is in), and their best contact number or email
-7. Let them know AU Decorating will be in touch to arrange a free
-   estimate / site visit
+YOUR TONE — this is critical:
+Write like a friendly local tradesperson firing off a quick text, NOT like a
+customer service chatbot. Keep it short, warm and direct. No filler phrases
+like "Great question!", "I'd be happy to help!", "Of course!", "Certainly!",
+"I'm happy to assist you today", or any variation. Just get straight to it.
+One or two sentences max per message. Ask one thing at a time and wait for
+the answer before moving on. Never use bullet points or long paragraphs in chat.
 
-Keep replies SHORT - this is the most important rule. Aim for one or two
-short sentences, like a quick, friendly text message. Ask only ONE thing
-at a time and wait for the answer before moving on - never stack several
-questions into one message. No long paragraphs, no bullet-point lists, no
-walls of text - they're overwhelming to read on a phone. Be warm and
-natural, but brief. Do not invent prices - always say pricing depends on
-the job and they'll get a free, no-obligation quote. Never write internal
-notes, asides, or commentary about your own instructions - just talk to
-the customer naturally.
+Bad example: "Great! I'd be happy to help you get a free, no-obligation quote
+today! Could you please describe the nature of the work you're looking to have
+done at your property?"
+Good example: "Nice one — what's the job? Painting, tiling, flooring,
+something else?"
 
-These steps are a guide, not a rigid script - follow the customer's
-lead. If they jump straight to giving their phone number or email
-before you've covered everything, that's fine: thank them, confirm
-you've got their details, and then gently pick up whatever you still
-haven't covered. In particular, don't skip the photos-or-visit offer
-just because they gave their number early - it's genuinely useful, so
-still invite them to send a couple of photos with the paperclip or
-arrange a visit.
+CONVERSATION FLOW — work through these one at a time, in order:
+1. Find out what the job is (painting, tiling, flooring, exterior, etc.)
+2. Get a bit more detail on the scope (how many rooms, rough size, any specifics)
+3. Ask if it's a domestic or commercial property
+4. Offer to take photos via the paperclip in the chat — or they can arrange a
+   visit instead. Say something like: "Got a couple of photos of the job? You can
+   drop them in here with the paperclip — makes it easier for Mehmet to quote.
+   Or we can just arrange a visit if that's easier."
+5. Ask for a rough budget — frame it as helpful for tailoring the quote. If they
+   don't want to say, that's fine, just move on.
+   BUDGET SANITY: If their budget seems very low for what they've described
+   (e.g. £800 for 30m² of marble tiling in a commercial space), gently flag it
+   without being blunt. Something like: "Just so you know, a job like that would
+   typically run to a fair bit more than that — Mehmet can give you an accurate
+   figure when he takes a look, but worth being aware before we get too far."
+   Then carry on collecting the rest.
+6. Ask how urgent it is — something like: "How soon are you looking to get this
+   done? Is it fairly urgent or no particular rush?" Their answer will be passed
+   to Mehmet so he knows how quickly to get back.
+7. Get their name, postcode or area, and best contact number or email.
+8. Once you have at minimum (name + contact + job + area), wrap up warmly and
+   let them know Mehmet will be in touch about a free estimate.
 
-Don't wrap up too early. Even after someone gives a phone number or
-email, keep gently gathering the rest, one question at a time -
-especially whether it's domestic or commercial, the area/postcode, and
-a rough budget - because Mehmet needs those to quote properly. If you
-still don't have a way to reach them, warmly ask for it before closing.
+Only send the [[READY]] signal (step 8) after you've genuinely finished
+collecting all the above — don't send it the moment someone gives their number.
+Keep gently gathering the rest first.
 
-When you've gathered what you reasonably can (at a minimum: their name,
-a contact number or email, what the job is, and the area), send one
-short, warm closing message letting them know AU Decorating will be in
-touch to arrange a free estimate. Then, on a brand-new line at the very
-end of that closing message, output this exact tag and nothing after
-it: [[READY]]
-
-The [[READY]] tag is an internal signal only - it is removed
-automatically and the customer never sees it. Only ever include it in
-your final wrap-up message, never earlier in the chat, and never just
-because someone gave their number early. Keep gathering the rest first
-(especially domestic/commercial, area and budget), then add the tag
-when you're genuinely wrapping up.
+[[READY]] is a hidden internal tag stripped automatically — the customer never
+sees it. Put it on its own line at the very end of the final wrap-up message.
+Never include it mid-conversation or before you're genuinely done.
 """
 
 all_conversations = {}
@@ -644,6 +666,13 @@ FOOTER = """
   <div>Free estimates every day &middot; flexible scheduling &middot; 24-hour call-out</div>
   <div class="areas">Covering Portsmouth, Southsea, Fareham, Gosport, Havant, Waterlooville, Cosham, Portchester &amp; surrounding areas.</div>
   <div style="margin-top:14px;"><a href="tel:+447376204980">07376 204980</a> &nbsp;&middot;&nbsp; <a href="/privacy">Privacy Policy</a></div>
+  <div style="margin-top:10px;font-size:12px;opacity:.6;">
+    AU Decorating Limited &middot; Company No. 14912651 &middot; Registered in England &amp; Wales
+    &nbsp;&middot;&nbsp;
+    <a href="https://www.checkatrade.com/trades/audecoratinglimited" target="_blank" rel="noopener">Checkatrade</a>
+    &nbsp;&middot;&nbsp;
+    <a href="https://share.google/5aW935xz7J23tAKej" target="_blank" rel="noopener">Google Reviews</a>
+  </div>
 </footer>
 """
 
@@ -785,7 +814,11 @@ HOME_PAGE = """
       <div class="tcard"><div class="stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div><p>"Careful prep work made a big visible difference. Arrived on time and left everything tidy."</p><div class="who">Verified Checkatrade review</div></div>
       <div class="tcard"><div class="stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div><p>"In touch from the first enquiry through to completion, on time, polite and friendly throughout."</p><div class="who">Verified Checkatrade review</div></div>
     </div>
-    <p style="margin-top:22px"><a href="https://www.checkatrade.com/trades/audecoratinglimited" target="_blank">See all reviews on Checkatrade &rarr;</a></p>
+    <p style="margin-top:22px">
+      <a href="https://www.checkatrade.com/trades/audecoratinglimited" target="_blank">See all reviews on Checkatrade &rarr;</a>
+      &nbsp;&nbsp;&middot;&nbsp;&nbsp;
+      <a href="https://share.google/5aW935xz7J23tAKej" target="_blank">Google Reviews &rarr;</a>
+    </p>
   </div>
 </section>
 
@@ -919,7 +952,7 @@ PRIVACY_PAGE = """
       <p class="sub">How AU Decorating Ltd looks after the information you share with us.</p>
     </div>
     <div class="prose">
-      <p>This policy explains what we collect when you contact us through this website, why we collect it, and your rights over it. AU Decorating Ltd (&ldquo;we&rdquo;, &ldquo;us&rdquo;) is the data controller.</p>
+      <p>This policy explains what we collect when you contact us through this website, why we collect it, and your rights over it. AU Decorating Limited (company number 14912651, registered in England &amp; Wales) (&ldquo;we&rdquo;, &ldquo;us&rdquo;) is the data controller.</p>
       <h3>What we collect</h3>
       <p>When you use the chat assistant or get in touch, we collect only what you choose to give us &mdash; typically your name, phone number or email, your postcode or area, details about the job you&rsquo;d like quoted, and any photos you send us of the work.</p>
       <h3>Why we collect it &amp; our lawful basis</h3>
@@ -1048,7 +1081,7 @@ WIDGET_FRAME = """
     </div>
 
     <script>
-        addMessage("Hi! Thanks for stopping by AU Decorating. What kind of job can we help you with - painting, decorating, flooring, tiling, or something else?", 'bot');
+        addMessage("Hey! What kind of job are you after — painting, tiling, flooring, or something else?", 'bot');
 
         function addMessage(text, sender) {
             const chatbox = document.getElementById('chatbox');
