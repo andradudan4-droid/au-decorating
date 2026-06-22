@@ -432,97 +432,208 @@ def _decode_image_data_url(data_url):
     }
 
 BASE_STYLE = """
-<link rel="icon" type="image/webp" href="/static/images/logo.webp">
-<meta name="theme-color" content="#0a0a0a">
+<link rel="icon" type="image/png" href="/static/images/logo.png">
+<meta name="theme-color" content="#14110d">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="AU Decorating Ltd">
 <meta property="og:title" content="AU Decorating Ltd - Portsmouth Painters & Decorators">
 <meta property="og:description" content="10/10 rated painters & decorators in Portsmouth. Interior & exterior painting, flooring, tiling, paving & driveways. Free, no-obligation quotes.">
 <meta property="og:url" content="https://au-decorating.com">
-<meta property="og:image" content="https://au-decorating.com/static/images/exterior-terrace-2.webp">
+<meta property="og:image" content="https://au-decorating.com/static/images/terrace-after.jpg">
 <meta name="twitter:card" content="summary_large_image">
-<!-- Analytics: privacy-friendly, no cookies. Create a free account at plausible.io,
-     add the domain "au-decorating.com", and stats start flowing - no code change needed.
-     Prefer Google Analytics instead? Tell Claude your G-XXXX ID and it'll swap this out. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
+<!-- Privacy-friendly analytics: create a free plausible.io account, add domain au-decorating.com -->
 <script defer data-domain="au-decorating.com" src="https://plausible.io/js/script.js"></script>
 <style>
-    * { box-sizing: border-box; }
-    body { font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif; margin: 0; color: #2a2a2a; background: #fff; }
-    nav { background: #0a0a0a; padding: 18px 30px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; }
-    nav .logo { color: #D4AF37; font-size: 20px; font-weight: 700; letter-spacing: 0.5px; display: flex; align-items: center; gap: 10px; }
-    nav .logo img { height: 32px; width: auto; }
-    nav .links a { color: #e8d9a8; text-decoration: none; margin-left: 24px; font-size: 14px; }
-    nav .links a:hover { color: #D4AF37; }
-    .hero { background: linear-gradient(135deg, #0a0a0a, #1f1f1f); color: white; padding: 90px 30px; text-align: center; }
-    .hero h1 { font-size: 38px; margin: 0 0 16px 0; font-weight: 700; color: #fff; }
-    .hero p { font-size: 18px; opacity: 0.9; max-width: 600px; margin: 0 auto 28px auto; }
-    .rating { display: inline-block; background: rgba(212,175,55,0.15); border: 1px solid #D4AF37; color: #D4AF37; padding: 8px 18px; border-radius: 20px; font-size: 14px; margin-bottom: 20px; }
-    .btn { display: inline-block; background: #D4AF37; color: #0a0a0a; padding: 14px 28px; border-radius: 6px; font-weight: 700; text-decoration: none; font-size: 15px; }
-    .btn:hover { background: #c29d2e; }
-    .section { max-width: 1000px; margin: 0 auto; padding: 60px 30px; }
-    .section h2 { font-size: 28px; margin-bottom: 8px; color: #0a0a0a; }
-    .section .sub { color: #666; margin-bottom: 36px; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 24px; }
-    .card { background: #f7f7f5; border-radius: 10px; padding: 24px; border-top: 3px solid #D4AF37; }
-    .card h3 { margin-top: 0; color: #0a0a0a; }
-    .gallery-item img, .gallery-item-wide img { width: 100%; height: 100%; object-fit: cover; display: block; }
-    .gallery-item { border-radius: 10px; overflow: hidden; aspect-ratio: 4/3; background: #e3e3e0; }
-    .gallery-item-wide { border-radius: 10px; overflow: hidden; aspect-ratio: 16/9; background: #e3e3e0; grid-column: span 2; }
-    .gallery-caption { font-size: 13px; color: #888; margin-top: 6px; }
-    footer { background: #0a0a0a; color: #e8d9a8; text-align: center; padding: 30px; font-size: 14px; margin-top: 40px; }
-    .contact-box { background: #f7f7f5; border-radius: 10px; padding: 30px; border-top: 3px solid #D4AF37; }
-    .contact-box p { margin: 8px 0; }
-    .testimonial-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 22px; }
-    .testimonial-card { background: #f7f7f5; border-radius: 10px; padding: 24px; border-left: 3px solid #D4AF37; }
-    .testimonial-stars { color: #D4AF37; font-size: 14px; margin-bottom: 10px; }
-    .testimonial-text { font-style: italic; color: #333; line-height: 1.5; margin-bottom: 14px; }
-    .testimonial-meta { font-size: 13px; color: #888; }
-    .feature-img { width: 100%; border-radius: 10px; margin: 30px 0; max-height: 420px; object-fit: cover; }
+  :root{
+    --bg:#14110d; --bg2:#1c1812; --panel:#0f0c08; --ink:#efe9dd; --mut:#a99f8c;
+    --gold:#c9a24b; --gold-soft:#e7c977; --line:rgba(201,162,75,.26);
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.6;-webkit-font-smoothing:antialiased;}
+  a{color:var(--gold)}
+  img{max-width:100%;display:block}
+  .serif{font-family:'Playfair Display',Georgia,serif}
 
-    /* --- Mobile responsiveness --- */
-    @media (max-width: 600px) {
-        nav { padding: 14px 18px; flex-direction: column; align-items: flex-start; gap: 10px; }
-        nav .links { display: flex; flex-wrap: wrap; gap: 4px 0; }
-        nav .links a { margin-left: 0; margin-right: 18px; }
-        .hero { padding: 56px 18px; }
-        .hero h1 { font-size: 26px; }
-        .hero p { font-size: 15px; }
-        .section { padding: 40px 18px; }
-        .section h2 { font-size: 22px; }
-        .grid { grid-template-columns: 1fr 1fr; gap: 14px; }
-        .gallery-item-wide { grid-column: span 2; }
-        .testimonial-grid { grid-template-columns: 1fr; }
-    }
-    @media (max-width: 420px) {
-        .grid { grid-template-columns: 1fr; }
-    }
+  /* nav */
+  nav{position:sticky;top:0;z-index:50;background:rgba(15,12,8,.92);
+    backdrop-filter:saturate(140%) blur(8px);border-bottom:1px solid var(--line);
+    display:flex;justify-content:space-between;align-items:center;
+    padding:14px 26px;flex-wrap:wrap;gap:8px;}
+  nav .brand{font-family:'Playfair Display',serif;color:var(--gold);font-size:21px;
+    font-weight:700;letter-spacing:.16em;text-decoration:none;display:flex;align-items:center;gap:11px;}
+  nav .brand .mark{width:30px;height:30px;border-radius:50%;object-fit:cover;
+    border:1px solid var(--line);}
+  nav .links{display:flex;flex-wrap:wrap;align-items:center;gap:22px}
+  nav .links a{color:var(--ink);text-decoration:none;font-size:13.5px;letter-spacing:.04em;opacity:.85}
+  nav .links a:hover{color:var(--gold);opacity:1}
+  nav .links .navcta{border:1px solid var(--gold);color:var(--gold);padding:8px 15px;border-radius:999px;opacity:1}
+  nav .links .navcta:hover{background:var(--gold);color:var(--panel)}
+
+  /* hero */
+  .hero{position:relative;min-height:86vh;display:flex;align-items:center;justify-content:center;
+    text-align:center;padding:90px 24px;
+    background:linear-gradient(rgba(13,10,7,.55),rgba(13,10,7,.86)),url('/static/images/arched-after.jpg') center/cover no-repeat;}
+  .hero .inner{max-width:780px}
+  .eyebrow{font-size:12px;letter-spacing:.32em;text-transform:uppercase;color:var(--gold);font-weight:700}
+  .hero h1{font-family:'Playfair Display',serif;font-weight:600;font-size:clamp(34px,6vw,58px);
+    line-height:1.06;margin:18px 0 16px;color:#fff;}
+  .hero p{font-size:clamp(15px,2.2vw,19px);color:#e9e2d4;max-width:560px;margin:0 auto 30px}
+  .pill{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--gold);
+    color:var(--gold-soft);padding:7px 16px;border-radius:999px;font-size:13px;letter-spacing:.03em;}
+  .btns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:8px}
+  .btn{display:inline-block;background:var(--gold);color:#17130c;padding:14px 26px;border-radius:999px;
+    font-weight:700;text-decoration:none;font-size:15px;letter-spacing:.02em;transition:transform .15s,background .15s}
+  .btn:hover{background:var(--gold-soft);transform:translateY(-1px)}
+  .btn-ghost{background:transparent;color:var(--gold);border:1px solid var(--gold)}
+  .btn-ghost:hover{background:rgba(201,162,75,.12);color:var(--gold-soft)}
+
+  /* sections */
+  .band{padding:78px 24px}
+  .band--panel{background:var(--bg2);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+  .wrap{max-width:1080px;margin:0 auto}
+  .wrap--narrow{max-width:760px}
+  .head{margin-bottom:38px}
+  .head .eyebrow{display:block;margin-bottom:12px}
+  h2.title{font-family:'Playfair Display',serif;font-weight:600;font-size:clamp(26px,4vw,40px);
+    margin:0 0 10px;color:var(--ink);line-height:1.12}
+  .sub{color:var(--mut);max-width:620px;margin:0;font-size:16px}
+  .rule{width:46px;height:2px;background:var(--gold);margin:0 0 22px}
+
+  /* before/after slider */
+  .ba-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:26px}
+  .ba-card .cap{margin:12px 2px 0;font-size:13.5px;color:var(--mut)}
+  .ba-card .cap b{color:var(--ink);font-weight:600}
+  .ba{position:relative;--pos:50%;border-radius:14px;overflow:hidden;border:1px solid var(--line);
+    background:#000;user-select:none;touch-action:pan-y}
+  .ba .layer{position:absolute;inset:0;width:100%;height:100%}
+  .ba .layer img{width:100%;height:100%;object-fit:cover}
+  .ba .before{clip-path:inset(0 calc(100% - var(--pos)) 0 0)}
+  .ba .spacer{position:relative;width:100%}
+  .ba .spacer img{width:100%;height:100%;object-fit:cover;opacity:0}
+  .ba .tag{position:absolute;top:12px;z-index:4;background:rgba(15,12,8,.78);color:var(--gold-soft);
+    border:1px solid var(--line);font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+    padding:5px 10px;border-radius:999px}
+  .ba .tag.b{left:12px} .ba .tag.a{right:12px}
+  .ba .line{position:absolute;top:0;bottom:0;left:var(--pos);width:2px;background:var(--gold);z-index:5;
+    transform:translateX(-1px);pointer-events:none}
+  .ba .knob{position:absolute;top:50%;left:var(--pos);z-index:6;width:42px;height:42px;border-radius:50%;
+    background:var(--gold);transform:translate(-50%,-50%);pointer-events:none;
+    display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(0,0,0,.5)}
+  .ba .knob:before{content:'\\2039\\203A';color:#17130c;font-weight:700;font-size:18px;letter-spacing:1px}
+  .ba input[type=range]{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;
+    cursor:ew-resize;z-index:7}
+
+  /* work gallery */
+  .work-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:16px}
+  figure.work{margin:0;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:#000;position:relative}
+  figure.work img{width:100%;height:100%;aspect-ratio:4/5;object-fit:cover;transition:transform .5s ease;display:block}
+  figure.work:hover img{transform:scale(1.05)}
+  figure.work figcaption{position:absolute;left:0;right:0;bottom:0;
+    background:linear-gradient(transparent,rgba(11,8,5,.86));
+    color:#f1eadc;font-size:12.5px;padding:26px 12px 11px;letter-spacing:.02em}
+  figure.work.tall img{aspect-ratio:4/6}
+
+  /* cards / services */
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:24px;position:relative}
+  .card .n{font-family:'Playfair Display',serif;color:var(--gold);font-size:14px;letter-spacing:.08em}
+  .card h3{margin:8px 0 8px;font-size:18px;color:var(--ink)}
+  .card p{margin:0;color:var(--mut);font-size:14.5px}
+
+  /* testimonials */
+  .tgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px}
+  .tcard{background:var(--panel);border:1px solid var(--line);border-left:2px solid var(--gold);
+    border-radius:12px;padding:22px}
+  .stars{color:var(--gold);letter-spacing:3px;font-size:14px;margin-bottom:10px}
+  .tcard p{margin:0 0 12px;color:#ddd5c6;font-size:14.5px;font-style:italic}
+  .tcard .who{color:var(--mut);font-size:12.5px;font-style:normal;letter-spacing:.04em}
+
+  /* cta */
+  .cta{text-align:center}
+  .cta h2{margin-bottom:14px}
+
+  /* contact box */
+  .contact-box{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:28px}
+  .contact-box p{margin:9px 0;color:var(--ink)}
+  .contact-box strong{color:var(--gold)}
+
+  /* prose (privacy) */
+  .prose{color:#d8d0c1;font-size:15px;line-height:1.75}
+  .prose h3{color:var(--gold);font-family:'Playfair Display',serif;font-weight:600;margin:26px 0 6px;font-size:19px}
+  .prose a{color:var(--gold-soft)}
+
+  /* footer */
+  footer{background:var(--panel);border-top:1px solid var(--line);text-align:center;padding:42px 24px;color:var(--mut);font-size:13.5px}
+  footer .flogo{width:84px;margin:0 auto 16px;opacity:.95}
+  footer a{color:var(--gold);text-decoration:none}
+  footer .areas{font-size:12.5px;opacity:.85;max-width:620px;margin:10px auto 0}
+
+  @media(max-width:640px){
+    nav{padding:12px 16px}
+    nav .links{gap:14px}
+    .band{padding:54px 18px}
+    .hero{min-height:78vh;padding:72px 18px}
+    .work-grid{grid-template-columns:1fr 1fr;gap:11px}
+  }
 </style>
 """
 
 NAV = """
 <nav>
-    <div class="logo"><img src="/static/images/logo.webp" alt="AU Decorating logo"> AU DECORATING LTD</div>
-    <div class="links">
-        <a href="/">Home</a>
-        <a href="/services">Services</a>
-        <a href="/gallery">Gallery</a>
-        <a href="/contact">Contact</a>
-    </div>
+  <a class="brand" href="/">AU DECORATING</a>
+  <div class="links">
+    <a href="/#work">Our work</a>
+    <a href="/#services">Services</a>
+    <a href="/gallery">Gallery</a>
+    <a href="/#reviews">Reviews</a>
+    <a class="navcta" href="https://wa.me/447376204980" target="_blank">Free quote</a>
+  </div>
 </nav>
 """
 
 FOOTER = """
 <footer>
-    <div style="margin-bottom:10px;">AU Decorating Ltd &middot; Portsmouth, UK &middot; Free estimates, every day, flexible scheduling</div>
-    <div style="font-size:13px;opacity:.8;margin-bottom:10px;">Covering Portsmouth, Southsea, Fareham, Gosport, Havant, Waterlooville, Cosham, Portchester and surrounding areas.</div>
-    <div style="font-size:13px;"><a href="/privacy" style="color:#D4AF37;text-decoration:none;">Privacy Policy</a></div>
+  <img class="flogo" src="/static/images/logo.png" alt="AU Decorating">
+  <div style="color:var(--ink);letter-spacing:.04em;margin-bottom:6px;">AU Decorating Ltd &middot; Portsmouth</div>
+  <div>Free estimates every day &middot; flexible scheduling &middot; 24-hour call-out</div>
+  <div class="areas">Covering Portsmouth, Southsea, Fareham, Gosport, Havant, Waterlooville, Cosham, Portchester &amp; surrounding areas.</div>
+  <div style="margin-top:14px;"><a href="tel:+447376204980">07376 204980</a> &nbsp;&middot;&nbsp; <a href="/privacy">Privacy Policy</a></div>
 </footer>
 """
 
 WIDGET_INCLUDE = '<script src="/widget.js"></script>'
 
+SLIDER_JS = """
+<script>
+(function(){
+  function clamp(v){return Math.max(0,Math.min(100,v));}
+  document.querySelectorAll('.ba').forEach(function(ba){
+    var r=ba.querySelector('input[type=range]');
+    function upd(){ ba.style.setProperty('--pos', r.value+'%'); }
+    r.addEventListener('input',upd); upd();
+  });
+})();
+</script>
+"""
+
+def _ba(before, after, label, ratio):
+    return ('<div class="ba-card"><div class="ba" style="--pos:50%;">'
+            '<div class="spacer"><img src="/static/images/' + after + '" style="aspect-ratio:' + ratio + '" alt=""></div>'
+            '<div class="layer"><img src="/static/images/' + after + '" alt="' + label + ' - after"></div>'
+            '<div class="layer before"><img src="/static/images/' + before + '" alt="' + label + ' - before"></div>'
+            '<span class="tag b">Before</span><span class="tag a">After</span>'
+            '<div class="line"></div><div class="knob"></div>'
+            '<input type="range" min="0" max="100" value="50" aria-label="Drag to compare before and after">'
+            '</div><div class="cap"><b>' + label + '</b></div></div>')
+
 HOME_PAGE = """
-<!DOCTYPE html><html><head><title>AU Decorating Ltd - Portsmouth Painters & Decorators</title>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>AU Decorating Ltd - Portsmouth Painters &amp; Decorators</title>
 <meta name="description" content="AU Decorating Ltd - 10/10 rated painters and decorators in Portsmouth. Interior and exterior painting, flooring, tiling, paving and driveways. Free quotes, every day.">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script type="application/ld+json">
@@ -530,212 +641,266 @@ HOME_PAGE = """
   "@context": "https://schema.org",
   "@type": ["LocalBusiness", "HousePainter"],
   "name": "AU Decorating Ltd",
-  "image": "https://au-decorating.com/static/images/exterior-terrace-2.webp",
-  "logo": "https://au-decorating.com/static/images/logo.webp",
+  "image": "https://au-decorating.com/static/images/terrace-after.jpg",
+  "logo": "https://au-decorating.com/static/images/logo.png",
   "url": "https://au-decorating.com",
   "telephone": "+447376204980",
   "email": "mehmet@au-decorating.com",
-  "priceRange": "\\u00a3\\u00a3",
+  "priceRange": "\u00a3\u00a3",
   "description": "10/10 rated painters and decorators in Portsmouth. Interior and exterior painting, decorating, flooring, tiling, paving, driveways and anti-vandal coatings. Domestic and commercial. Free, no-obligation quotes.",
-  "address": {
-    "@type": "PostalAddress",
-    "addressLocality": "Portsmouth",
-    "addressRegion": "Hampshire",
-    "addressCountry": "GB"
-  },
+  "address": {"@type": "PostalAddress", "addressLocality": "Portsmouth", "addressRegion": "Hampshire", "addressCountry": "GB"},
   "areaServed": [
-    {"@type": "City", "name": "Portsmouth"},
-    {"@type": "City", "name": "Southsea"},
-    {"@type": "City", "name": "Fareham"},
-    {"@type": "City", "name": "Gosport"},
-    {"@type": "City", "name": "Havant"},
-    {"@type": "City", "name": "Waterlooville"},
-    {"@type": "City", "name": "Cosham"},
-    {"@type": "City", "name": "Portchester"}
+    {"@type": "City", "name": "Portsmouth"}, {"@type": "City", "name": "Southsea"},
+    {"@type": "City", "name": "Fareham"}, {"@type": "City", "name": "Gosport"},
+    {"@type": "City", "name": "Havant"}, {"@type": "City", "name": "Waterlooville"},
+    {"@type": "City", "name": "Cosham"}, {"@type": "City", "name": "Portchester"}
   ],
-  "aggregateRating": {
-    "@type": "AggregateRating",
-    "ratingValue": "10",
-    "bestRating": "10",
-    "ratingCount": "45"
-  },
+  "aggregateRating": {"@type": "AggregateRating", "ratingValue": "10", "bestRating": "10", "ratingCount": "45"},
   "sameAs": ["https://www.checkatrade.com/trades/audecoratinglimited"]
 }
 </script>
 """ + BASE_STYLE + """</head><body>
 """ + NAV + """
-<div class="hero">
-    <div class="rating">&#9733; 10/10 from 45+ reviews on Checkatrade</div>
-    <h1>Professional Painting &amp; Decorating in Portsmouth</h1>
-    <p>Interior &amp; exterior painting, flooring, tiling, paving and driveways.
-    Free, no-obligation quotes - flexible scheduling, every day.</p>
-    <a class="btn" href="https://wa.me/447376204980" target="_blank">Get a Free Quote on WhatsApp</a>
-    <a class="btn" href="tel:+447376204980" style="background:transparent;color:#D4AF37;border:1px solid #D4AF37;margin-left:10px;">Call us now</a>
-</div>
-<div class="section">
-    <img class="feature-img" src="/static/images/exterior-terrace-2.webp" alt="Recently painted terrace house exterior">
-    <h2>Why choose AU Decorating</h2>
-    <p class="sub">Professional, punctual, and detail-oriented on every job.</p>
-    <div class="grid">
-        <div class="card"><h3>Free Estimates</h3><p>No fixed prices - every quote is tailored to your job, with no obligation.</p></div>
-        <div class="card"><h3>Flexible Scheduling</h3><p>Available every day, plus 24-hour call-out, to fit around your time.</p></div>
-        <div class="card"><h3>Domestic &amp; Commercial</h3><p>From a single room to full commercial fit-outs, including insurance work.</p></div>
-    </div>
-</div>
 
-<div class="section" style="background:#f7f7f5; max-width: 100%; padding-top: 60px; padding-bottom: 60px;">
-    <div style="max-width:1000px; margin:0 auto;">
-        <h2>What customers say</h2>
-        <p class="sub">10/10 rating from 45+ reviews on Checkatrade</p>
-        <div class="testimonial-grid">
-            <div class="testimonial-card">
-                <div class="testimonial-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
-                <p class="testimonial-text">Mehmet repaired cracked plaster and water damage, then redecorated quickly and tidily - even tackled a few extra small jobs at no extra charge.</p>
-                <p class="testimonial-meta">Verified Checkatrade review</p>
-            </div>
-            <div class="testimonial-card">
-                <div class="testimonial-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
-                <p class="testimonial-text">A repeat customer praised Mehmet's hallway decorating as efficient, great value, and finished with an excellent clean-up afterwards.</p>
-                <p class="testimonial-meta">Verified Checkatrade review</p>
-            </div>
-            <div class="testimonial-card">
-                <div class="testimonial-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
-                <p class="testimonial-text">Exterior painting customer noted the careful prep work made a big visible difference, with the team arriving on time and leaving everything tidy.</p>
-                <p class="testimonial-meta">Verified Checkatrade review</p>
-            </div>
-            <div class="testimonial-card">
-                <div class="testimonial-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
-                <p class="testimonial-text">Praised for staying in touch from the first enquiry through to completion, arriving on time, and being polite and friendly throughout the job.</p>
-                <p class="testimonial-meta">Verified Checkatrade review</p>
-            </div>
-            <div class="testimonial-card">
-                <div class="testimonial-stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
-                <p class="testimonial-text">A bathroom and bedroom ceiling painting customer highlighted a quick, clear quote and a flexible approach to the work required.</p>
-                <p class="testimonial-meta">Verified Checkatrade review</p>
-            </div>
-        </div>
-        <p style="margin-top:24px;"><a href="https://www.checkatrade.com/trades/audecoratinglimited" target="_blank" style="color:#1B3A5C;">See all reviews on Checkatrade &rarr;</a></p>
+<header class="hero">
+  <div class="inner">
+    <span class="pill">&#9733; 10/10 from 45+ reviews on Checkatrade</span>
+    <h1 class="serif">A flawless finish,<br>inside and out.</h1>
+    <p>Painters &amp; decorators in Portsmouth &mdash; interior &amp; exterior painting, flooring, tiling, paving and driveways. Free, no-obligation quotes.</p>
+    <div class="btns">
+      <a class="btn" href="https://wa.me/447376204980" target="_blank">Get a free quote</a>
+      <a class="btn btn-ghost" href="tel:+447376204980">Call 07376 204980</a>
     </div>
-</div>
-""" + FOOTER + WIDGET_INCLUDE + """
+  </div>
+</header>
+
+<section class="band" id="work">
+  <div class="wrap">
+    <div class="head">
+      <span class="eyebrow">The transformation</span>
+      <div class="rule"></div>
+      <h2 class="title serif">Drag to see the difference</h2>
+      <p class="sub">Real jobs around Portsmouth. Pull the slider across each one to reveal the before and after.</p>
+    </div>
+    <div class="ba-grid">
+""" + _ba("terrace-before.jpg","terrace-after.jpg","Victorian terrace, full exterior repaint","3/4") + \
+       _ba("arched-before.jpg","arched-after.jpg","Render repair &amp; exterior repaint","3/4") + \
+       _ba("kitchen-before.jpg","kitchen-after.jpg","Kitchen renovation &amp; splashback","16/9") + """
+    </div>
+  </div>
+</section>
+
+<section class="band band--panel" id="gallery-preview">
+  <div class="wrap">
+    <div class="head">
+      <span class="eyebrow">Recent work</span>
+      <div class="rule"></div>
+      <h2 class="title serif">Finished to a standard worth showing</h2>
+      <p class="sub">A selection of homes and commercial spaces across the area.</p>
+    </div>
+    <div class="work-grid">
+      <figure class="work tall"><img src="/static/images/work-terrace-bay.jpg" alt="Painted Victorian bay, grey and white"><figcaption>Victorian terrace &middot; Portsmouth</figcaption></figure>
+      <figure class="work tall"><img src="/static/images/work-cottage-1.jpg" alt="Rendered cottage exterior"><figcaption>Rendered cottage exterior</figcaption></figure>
+      <figure class="work tall"><img src="/static/images/work-salon-corridor.jpg" alt="Salon commercial fit-out"><figcaption>House of Glam &middot; salon fit-out</figcaption></figure>
+      <figure class="work tall"><img src="/static/images/work-burgundy-1.jpg" alt="Heritage red feature wall"><figcaption>Feature wall &middot; heritage red</figcaption></figure>
+      <figure class="work tall"><img src="/static/images/work-cottage-porch.jpg" alt="Porch and timber in satin black"><figcaption>Porch &amp; timber &middot; satin black</figcaption></figure>
+      <figure class="work tall"><img src="/static/images/work-green.jpg" alt="Sage green living room repaint"><figcaption>Living room &middot; full repaint</figcaption></figure>
+      <figure class="work tall"><img src="/static/images/work-salon-panel.jpg" alt="Slat panel feature wall"><figcaption>Feature slat panelling</figcaption></figure>
+      <figure class="work tall"><img src="/static/images/work-terrace-relief.jpg" alt="Restored painted period detailing"><figcaption>Restored period detailing</figcaption></figure>
+    </div>
+    <p style="margin-top:24px"><a href="/gallery">See the full gallery &rarr;</a></p>
+  </div>
+</section>
+
+<section class="band" id="services">
+  <div class="wrap">
+    <div class="head">
+      <span class="eyebrow">What we do</span>
+      <div class="rule"></div>
+      <h2 class="title serif">Services</h2>
+      <p class="sub">Domestic and commercial &mdash; from a single feature wall to a full fit-out.</p>
+    </div>
+    <div class="cards">
+      <div class="card"><div class="n">01</div><h3>Interior painting</h3><p>Walls, ceilings and woodwork, prepped properly and finished clean.</p></div>
+      <div class="card"><div class="n">02</div><h3>Exterior &amp; render</h3><p>Weatherproof finishes, render repair and full elevations.</p></div>
+      <div class="card"><div class="n">03</div><h3>Flooring &amp; tiling</h3><p>Wood-effect, tile and splashbacks for kitchens and bathrooms.</p></div>
+      <div class="card"><div class="n">04</div><h3>Paving &amp; driveways</h3><p>Outdoor paving and driveway installation.</p></div>
+      <div class="card"><div class="n">05</div><h3>Commercial fit-out</h3><p>Salons, shops and offices &mdash; painting, flooring and panelling.</p></div>
+      <div class="card"><div class="n">06</div><h3>Insurance work</h3><p>Repairs and redecoration handled as part of insurance claims.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="band band--panel" id="reviews">
+  <div class="wrap">
+    <div class="head">
+      <span class="eyebrow">10/10 on Checkatrade</span>
+      <div class="rule"></div>
+      <h2 class="title serif">What customers say</h2>
+      <p class="sub">A 10/10 rating from 45+ verified reviews.</p>
+    </div>
+    <div class="tgrid">
+      <div class="tcard"><div class="stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div><p>"Repaired cracked plaster and water damage, then redecorated quickly and tidily &mdash; even did a few extra small jobs at no extra charge."</p><div class="who">Verified Checkatrade review</div></div>
+      <div class="tcard"><div class="stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div><p>"A repeat customer &mdash; hallway decorating was efficient, great value, and finished with an excellent clean-up."</p><div class="who">Verified Checkatrade review</div></div>
+      <div class="tcard"><div class="stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div><p>"Careful prep work made a big visible difference. Arrived on time and left everything tidy."</p><div class="who">Verified Checkatrade review</div></div>
+      <div class="tcard"><div class="stars">&#9733;&#9733;&#9733;&#9733;&#9733;</div><p>"In touch from the first enquiry through to completion, on time, polite and friendly throughout."</p><div class="who">Verified Checkatrade review</div></div>
+    </div>
+    <p style="margin-top:22px"><a href="https://www.checkatrade.com/trades/audecoratinglimited" target="_blank">See all reviews on Checkatrade &rarr;</a></p>
+  </div>
+</section>
+
+<section class="band cta">
+  <div class="wrap wrap--narrow">
+    <span class="eyebrow">Free, no obligation</span>
+    <h2 class="title serif" style="margin-top:12px">Tell us about your project</h2>
+    <p class="sub" style="margin:0 auto 24px">Message us a few details (photos welcome) and we'll get back with a quote. Use the chat in the corner, WhatsApp, or call.</p>
+    <div class="btns">
+      <a class="btn" href="https://wa.me/447376204980" target="_blank">Quote on WhatsApp</a>
+      <a class="btn btn-ghost" href="tel:+447376204980">Call us now</a>
+    </div>
+  </div>
+</section>
+""" + FOOTER + SLIDER_JS + WIDGET_INCLUDE + """
 </body></html>
 """
 
 SERVICES_PAGE = """
-<!DOCTYPE html><html><head><title>Services - AU Decorating Ltd</title>""" + BASE_STYLE + """</head><body>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Services - AU Decorating Ltd</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">""" + BASE_STYLE + """</head><body>
 """ + NAV + """
-<div class="section">
-    <h2>Our Services</h2>
-    <p class="sub">Painting, decorating, and more across Portsmouth and the surrounding area.</p>
-    <div class="grid">
-        <div class="card"><h3>Interior Painting</h3><p>Walls, ceilings, woodwork - finished to a high standard.</p></div>
-        <div class="card"><h3>Exterior Painting</h3><p>Weatherproof finishes that protect and refresh your property.</p></div>
-        <div class="card"><h3>Wallpapering</h3><p>From feature walls to full-room papering.</p></div>
-        <div class="card"><h3>Flooring</h3><p>Installation across a range of flooring types.</p></div>
-        <div class="card"><h3>Tiling</h3><p>Bathrooms, kitchens, and more.</p></div>
-        <div class="card"><h3>Paving &amp; Driveways</h3><p>Outdoor paving and driveway installation.</p></div>
-        <div class="card"><h3>Anti-Vandal Coatings</h3><p>Protective coatings for commercial and public-facing properties.</p></div>
-        <div class="card"><h3>Insurance Work</h3><p>Repairs and redecoration undertaken as part of insurance claims.</p></div>
+<section class="band">
+  <div class="wrap">
+    <div class="head">
+      <span class="eyebrow">What we do</span><div class="rule"></div>
+      <h2 class="title serif">Our services</h2>
+      <p class="sub">Painting, decorating and finishing across Portsmouth and the surrounding area.</p>
     </div>
-</div>
+    <div class="cards">
+      <div class="card"><div class="n">01</div><h3>Interior painting</h3><p>Walls, ceilings and woodwork, finished to a high standard.</p></div>
+      <div class="card"><div class="n">02</div><h3>Exterior painting</h3><p>Weatherproof finishes that protect and refresh your property.</p></div>
+      <div class="card"><div class="n">03</div><h3>Render repair</h3><p>Patching, filling and full re-coats on tired render.</p></div>
+      <div class="card"><div class="n">04</div><h3>Wallpapering</h3><p>From feature walls to full-room papering.</p></div>
+      <div class="card"><div class="n">05</div><h3>Flooring</h3><p>Installation across a range of flooring types.</p></div>
+      <div class="card"><div class="n">06</div><h3>Tiling</h3><p>Bathrooms, kitchens and splashbacks.</p></div>
+      <div class="card"><div class="n">07</div><h3>Paving &amp; driveways</h3><p>Outdoor paving and driveway installation.</p></div>
+      <div class="card"><div class="n">08</div><h3>Commercial fit-out</h3><p>Salons, shops and offices, including panelling.</p></div>
+      <div class="card"><div class="n">09</div><h3>Insurance work</h3><p>Repairs and redecoration as part of insurance claims.</p></div>
+    </div>
+    <div class="btns" style="margin-top:34px;justify-content:flex-start">
+      <a class="btn" href="https://wa.me/447376204980" target="_blank">Get a free quote</a>
+    </div>
+  </div>
+</section>
 """ + FOOTER + WIDGET_INCLUDE + """
 </body></html>
 """
 
 GALLERY_PAGE = """
-<!DOCTYPE html><html><head><title>Gallery - AU Decorating Ltd</title>""" + BASE_STYLE + """</head><body>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Gallery - AU Decorating Ltd</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">""" + BASE_STYLE + """</head><body>
 """ + NAV + """
-<div class="section">
-    <h2>Recent Work</h2>
-    <p class="sub">A selection of real projects completed by AU Decorating around Portsmouth.</p>
-
-    <h3>Featured project: salon refurbishment (painting &amp; flooring)</h3>
-    <div class="grid">
-        <div class="gallery-item-wide"><img src="/static/images/salon-flooring-painting.webp" alt="Salon refurbishment - marble effect flooring and feature wall painting"></div>
-        <div class="gallery-item"><img src="/static/images/salon-kitchenette.webp" alt="Salon staff kitchenette - repainted and retiled"></div>
+<section class="band">
+  <div class="wrap">
+    <div class="head">
+      <span class="eyebrow">Recent work</span><div class="rule"></div>
+      <h2 class="title serif">The gallery</h2>
+      <p class="sub">Real projects completed by AU Decorating around Portsmouth.</p>
     </div>
 
-    <h3 style="margin-top:48px;">Exterior painting</h3>
-    <div class="grid">
-        <div class="gallery-item"><img src="/static/images/exterior-terrace-1.webp" alt="Exterior terrace house painting"></div>
-        <div class="gallery-item"><img src="/static/images/exterior-terrace-2.webp" alt="Exterior terrace house painting, yellow finish"></div>
-        <div class="gallery-item"><img src="/static/images/exterior-side-render.webp" alt="Exterior render painting, side of property"></div>
-        <div class="gallery-item"><img src="/static/images/exterior-grey-semi.webp" alt="Exterior semi-detached house painting"></div>
-        <div class="gallery-item"><img src="/static/images/exterior-extension-1.webp" alt="House extension exterior painting"></div>
-        <div class="gallery-item"><img src="/static/images/exterior-extension-2.webp" alt="House extension exterior painting, garden view"></div>
-        <div class="gallery-item"><img src="/static/images/exterior-porch.webp" alt="Front porch and door area painting"></div>
-        <div class="gallery-item"><img src="/static/images/exterior-bay-painted-1.jpg" alt="Painted bay window detail, grey finish"></div>
-        <div class="gallery-item"><img src="/static/images/exterior-bay-painted-2.jpg" alt="Painted bay window, full view"></div>
-        <div class="gallery-item"><img src="/static/images/exterior-bay-detail-1.jpg" alt="Decorative plasterwork detail, painted"></div>
-        <div class="gallery-item"><img src="/static/images/exterior-bay-detail-2.jpg" alt="Painted terrace house facade detail"></div>
-        <div class="gallery-item"><img src="/static/images/exterior-full-house-2.jpg" alt="Exterior terrace house painting, full elevation"></div>
-        <div class="gallery-item"><img src="/static/images/exterior-side-wall-grey.jpg" alt="Exterior wall painted dark grey"></div>
+    <h3 class="serif" style="color:var(--gold);font-weight:600;margin:0 0 16px;font-size:20px;">Before &amp; after</h3>
+    <div class="ba-grid">
+""" + _ba("terrace-before.jpg","terrace-after.jpg","Victorian terrace, full exterior repaint","3/4") + \
+       _ba("arched-before.jpg","arched-after.jpg","Render repair &amp; exterior repaint","3/4") + \
+       _ba("kitchen-before.jpg","kitchen-after.jpg","Kitchen renovation &amp; splashback","16/9") + """
     </div>
 
-    <h3 style="margin-top:48px;">Interior painting, flooring &amp; tiling</h3>
-    <div class="grid">
-        <div class="gallery-item"><img src="/static/images/flooring-grey-wood.webp" alt="New flooring installation, grey wood-effect"></div>
-        <div class="gallery-item"><img src="/static/images/kitchen-tiling.webp" alt="Kitchen tiling and splashback"></div>
-        <div class="gallery-item"><img src="/static/images/interior-hallway-floor.jpg" alt="Hallway flooring and painted walls"></div>
-        <div class="gallery-item"><img src="/static/images/interior-floor-room-3.jpg" alt="Refinished wood flooring with period fireplace surround"></div>
+    <h3 class="serif" style="color:var(--gold);font-weight:600;margin:48px 0 16px;font-size:20px;">Exteriors</h3>
+    <div class="work-grid">
+      <figure class="work tall"><img src="/static/images/work-terrace-bay.jpg" alt="Painted Victorian bay window"><figcaption>Victorian terrace &middot; grey &amp; white</figcaption></figure>
+      <figure class="work tall"><img src="/static/images/work-terrace-relief.jpg" alt="Restored period plasterwork"><figcaption>Restored period detailing</figcaption></figure>
+      <figure class="work tall"><img src="/static/images/work-cottage-1.jpg" alt="Rendered cottage exterior"><figcaption>Rendered cottage exterior</figcaption></figure>
+      <figure class="work tall"><img src="/static/images/work-cottage-2.jpg" alt="Cottage masonry and trim"><figcaption>Masonry &amp; trim</figcaption></figure>
+      <figure class="work tall"><img src="/static/images/work-cottage-porch.jpg" alt="Porch and timber satin black"><figcaption>Porch &amp; timber &middot; satin black</figcaption></figure>
+      <figure class="work tall"><img src="/static/images/work-semi.jpg" alt="Exterior render repaint"><figcaption>Exterior render repaint</figcaption></figure>
     </div>
-</div>
-""" + FOOTER + WIDGET_INCLUDE + """
+
+    <h3 class="serif" style="color:var(--gold);font-weight:600;margin:48px 0 16px;font-size:20px;">Interiors &amp; commercial</h3>
+    <div class="work-grid">
+      <figure class="work tall"><img src="/static/images/work-burgundy-1.jpg" alt="Heritage red feature wall"><figcaption>Feature wall &middot; heritage red</figcaption></figure>
+      <figure class="work tall"><img src="/static/images/work-burgundy-2.jpg" alt="Living room and fireplace"><figcaption>Living room &amp; fireplace</figcaption></figure>
+      <figure class="work tall"><img src="/static/images/work-green.jpg" alt="Sage living room repaint"><figcaption>Living room &middot; full repaint</figcaption></figure>
+      <figure class="work tall"><img src="/static/images/work-salon-corridor.jpg" alt="Salon corridor, marble floor"><figcaption>House of Glam &middot; salon</figcaption></figure>
+      <figure class="work tall"><img src="/static/images/work-salon-panel.jpg" alt="Slat panel feature wall"><figcaption>Feature slat panelling</figcaption></figure>
+      <figure class="work tall"><img src="/static/images/work-salon-room.jpg" alt="Treatment room"><figcaption>Treatment room</figcaption></figure>
+    </div>
+
+    <div class="btns" style="margin-top:34px;justify-content:flex-start">
+      <a class="btn" href="https://wa.me/447376204980" target="_blank">Get a free quote</a>
+    </div>
+  </div>
+</section>
+""" + FOOTER + SLIDER_JS + WIDGET_INCLUDE + """
 </body></html>
 """
 
 CONTACT_PAGE = """
-<!DOCTYPE html><html><head><title>Contact - AU Decorating Ltd</title>""" + BASE_STYLE + """</head><body>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Contact - AU Decorating Ltd</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">""" + BASE_STYLE + """</head><body>
 """ + NAV + """
-<div class="section">
-    <h2>Get in Touch</h2>
-    <p class="sub">Use the chat bubble in the corner for the fastest reply, or reach us directly.</p>
-    <div class="contact-box">
-        <p><strong>Phone:</strong> <a href="tel:07376204980">07376 204980</a></p>
-        <p><strong>WhatsApp:</strong> <a href="https://wa.me/447376204980" target="_blank">Chat with us on WhatsApp</a></p>
-        <p><strong>Email:</strong> <a href="mailto:mehmet@au-decorating.com">mehmet@au-decorating.com</a></p>
-        <p><strong>Hours:</strong> Available every day, flexible scheduling, plus 24-hour call-out</p>
-        <p><strong>Area covered:</strong> Portsmouth, Southsea, Fareham, Gosport, Havant, Waterlooville, Cosham, Portchester and surrounding areas</p>
+<section class="band">
+  <div class="wrap wrap--narrow">
+    <div class="head">
+      <span class="eyebrow">Get in touch</span><div class="rule"></div>
+      <h2 class="title serif">Let's talk about your project</h2>
+      <p class="sub">Use the chat bubble in the corner for the fastest reply, or reach us directly.</p>
     </div>
-</div>
+    <div class="contact-box">
+      <p><strong>Phone:</strong> <a href="tel:+447376204980">07376 204980</a></p>
+      <p><strong>WhatsApp:</strong> <a href="https://wa.me/447376204980" target="_blank">Chat with us on WhatsApp</a></p>
+      <p><strong>Email:</strong> <a href="mailto:mehmet@au-decorating.com">mehmet@au-decorating.com</a></p>
+      <p><strong>Hours:</strong> Every day, flexible scheduling, plus 24-hour call-out</p>
+      <p><strong>Area covered:</strong> Portsmouth, Southsea, Fareham, Gosport, Havant, Waterlooville, Cosham, Portchester &amp; surrounding areas</p>
+    </div>
+  </div>
+</section>
 """ + FOOTER + WIDGET_INCLUDE + """
 </body></html>
 """
 
 PRIVACY_PAGE = """
-<!DOCTYPE html><html><head><title>Privacy Policy - AU Decorating Ltd</title>""" + BASE_STYLE + """</head><body>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Privacy Policy - AU Decorating Ltd</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">""" + BASE_STYLE + """</head><body>
 """ + NAV + """
-<div class="section" style="max-width:760px;">
-    <h2>Privacy Policy</h2>
-    <p class="sub">How AU Decorating Ltd looks after the information you share with us.</p>
-    <div style="color:#333;line-height:1.7;font-size:15px;">
-        <p>This policy explains what we collect when you contact us through this website, why we collect it, and your rights over it. AU Decorating Ltd (&ldquo;we&rdquo;, &ldquo;us&rdquo;) is the data controller.</p>
-
-        <h3 style="color:#0a0a0a;margin-top:28px;">What we collect</h3>
-        <p>When you use the chat assistant or get in touch, we collect only what you choose to give us &mdash; typically your name, phone number or email, your postcode or area, details about the job you&rsquo;d like quoted, and any photos you send us of the work.</p>
-
-        <h3 style="color:#0a0a0a;margin-top:28px;">Why we collect it &amp; our lawful basis</h3>
-        <p>We use your details solely to respond to your enquiry, prepare a quote, and arrange any work you go ahead with. Our lawful basis is taking steps at your request before entering into a contract, and our legitimate interest in responding to enquiries about our services.</p>
-
-        <h3 style="color:#0a0a0a;margin-top:28px;">Who we share it with</h3>
-        <p>We don&rsquo;t sell your data or use it for advertising. To run the website assistant, your messages are processed by our AI provider (Groq) to generate replies, and your enquiry is emailed to us through Resend. These providers process the information only to deliver that service. We may also contact you by phone, text, WhatsApp or email to follow up on your enquiry.</p>
-
-        <h3 style="color:#0a0a0a;margin-top:28px;">How long we keep it</h3>
-        <p>We keep enquiry details only as long as needed to deal with your enquiry and any work that follows, and for our normal business and tax records, after which they are deleted.</p>
-
-        <h3 style="color:#0a0a0a;margin-top:28px;">Cookies</h3>
-        <p>The site uses a single essential cookie to remember your chat session. We don&rsquo;t use advertising or tracking cookies. We use privacy-friendly, cookie-free analytics to count visits.</p>
-
-        <h3 style="color:#0a0a0a;margin-top:28px;">Your rights</h3>
-        <p>You can ask us to see, correct, or delete the information we hold about you, or to stop using it. Just get in touch and we&rsquo;ll sort it. You also have the right to complain to the UK&rsquo;s Information Commissioner&rsquo;s Office (ico.org.uk).</p>
-
-        <h3 style="color:#0a0a0a;margin-top:28px;">Contact</h3>
-        <p>For anything about your data, email <a href="mailto:mehmet@au-decorating.com" style="color:#b8932f;">mehmet@au-decorating.com</a> or call <a href="tel:07376204980" style="color:#b8932f;">07376 204980</a>.</p>
+<section class="band">
+  <div class="wrap wrap--narrow">
+    <div class="head">
+      <span class="eyebrow">Your privacy</span><div class="rule"></div>
+      <h2 class="title serif">Privacy Policy</h2>
+      <p class="sub">How AU Decorating Ltd looks after the information you share with us.</p>
     </div>
-</div>
+    <div class="prose">
+      <p>This policy explains what we collect when you contact us through this website, why we collect it, and your rights over it. AU Decorating Ltd (&ldquo;we&rdquo;, &ldquo;us&rdquo;) is the data controller.</p>
+      <h3>What we collect</h3>
+      <p>When you use the chat assistant or get in touch, we collect only what you choose to give us &mdash; typically your name, phone number or email, your postcode or area, details about the job you&rsquo;d like quoted, and any photos you send us of the work.</p>
+      <h3>Why we collect it &amp; our lawful basis</h3>
+      <p>We use your details solely to respond to your enquiry, prepare a quote, and arrange any work you go ahead with. Our lawful basis is taking steps at your request before entering into a contract, and our legitimate interest in responding to enquiries about our services.</p>
+      <h3>Who we share it with</h3>
+      <p>We don&rsquo;t sell your data or use it for advertising. To run the website assistant, your messages are processed by our AI provider (Groq) to generate replies, and your enquiry is emailed to us through Resend. These providers process the information only to deliver that service. We may also contact you by phone, text, WhatsApp or email to follow up on your enquiry.</p>
+      <h3>How long we keep it</h3>
+      <p>We keep enquiry details only as long as needed to deal with your enquiry and any work that follows, and for our normal business and tax records, after which they are deleted.</p>
+      <h3>Cookies</h3>
+      <p>The site uses a single essential cookie to remember your chat session. We don&rsquo;t use advertising or tracking cookies. We use privacy-friendly, cookie-free analytics to count visits.</p>
+      <h3>Your rights</h3>
+      <p>You can ask us to see, correct, or delete the information we hold about you, or to stop using it. Just get in touch and we&rsquo;ll sort it. You also have the right to complain to the UK&rsquo;s Information Commissioner&rsquo;s Office (ico.org.uk).</p>
+      <h3>Contact</h3>
+      <p>For anything about your data, email <a href="mailto:mehmet@au-decorating.com">mehmet@au-decorating.com</a> or call <a href="tel:+447376204980">07376 204980</a>.</p>
+    </div>
+  </div>
+</section>
 """ + FOOTER + WIDGET_INCLUDE + """
 </body></html>
 """
+
 
 WIDGET_JS = """
 (function () {
