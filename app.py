@@ -444,13 +444,18 @@ CONVERSATION FLOW — work through these one at a time, in order:
    done? Is it fairly urgent or no particular rush?" Their answer will be passed
    to Mehmet so he knows how quickly to get back.
 7. Get their name, postcode or area, and best contact number or email.
-8. Once you have at minimum (name + contact + job + area), wrap up warmly and
-   confirm their enquiry has been sent over to Mehmet, who'll be in touch about
-   a free estimate - usually the same day.
+   Quickly repeat the number or email back to check you've typed it right.
+8. Once you've worked through everything above, wrap up warmly and confirm
+   their enquiry has been sent over to Mehmet, who'll be in touch about a free
+   estimate - usually the same day.
 
-Only send the [[READY]] signal (step 8) after you've genuinely finished
-collecting all the above — don't send it the moment someone gives their number.
-Keep gently gathering the rest first.
+IMPORTANT - WHEN TO FINISH: Only add the [[READY]] signal once you have ASKED
+about ALL of these: the job, rough size/scope, domestic or commercial, offered
+photos or a visit, budget, how urgent it is, their name, their postcode/area,
+and their contact details (and confirmed them). It's completely fine if they
+decline to answer some - but you must have ASKED each one first. Do NOT add
+[[READY]] just because they gave a phone number - keep gently gathering the
+rest until the whole list is covered, THEN wrap up and add [[READY]].
 
 [[READY]] is a hidden internal tag stripped automatically — the customer never
 sees it. Put it on its own line at the very end of the final wrap-up message.
@@ -1325,7 +1330,7 @@ def chat_endpoint():
         response = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=conversation,
-            max_tokens=220,
+            max_tokens=256,
             timeout=20,
         )
         ai_reply = response.choices[0].message.content
@@ -1348,22 +1353,16 @@ def chat_endpoint():
 
     conversation.append({"role": "assistant", "content": ai_reply})
 
-    # Only email once the assistant has actually finished gathering the details
-    # (it signals this with the internal READY tag) - so budget, area and job
-    # type make it in, instead of firing the instant a phone number appears.
-    # The closing-phrase and long-chat checks are safety nets so a lead is never
-    # lost if the tag is missed. Sent at most once per visitor.
-    # Decide whether to email the lead. Primary signal is the assistant's READY
-    # tag, but we ALSO send when the assistant is clearly wrapping up, when the
-    # visitor signs off, or after a few exchanges - so a lead is never lost even
-    # if the model forgets the tag or it gets truncated by the token limit.
-    bot_wrapping = bool(re.search(
-        r"(be in touch|get back to you|pass(?:ed)? (?:this|your|the)|"
-        r"free (?:estimate|quote)|in touch (?:shortly|soon)|reach out|"
-        r"sent (?:this|your|the)|details (?:over|to)|Mehmet will|"
-        r"Mehmet(?:'| wi)ll be|speak soon|hear from)", ai_reply, re.I))
+    # Only email once the assistant has genuinely finished gathering EVERYTHING.
+    # It signals this with the internal [[READY]] tag, which it only adds after
+    # working through the whole checklist (job, scope, budget, area, contact...).
+    # We deliberately do NOT send on wrap-up phrases or a low turn count, because
+    # that was firing before budget/postcode were collected. The fallbacks below
+    # are conservative - only if the visitor clearly signs off, or a very long
+    # chat - so a lead is never lost, but normal chats wait for the full set of
+    # questions. Sent at most once per visitor.
     if session_id not in notified_sessions and has_contact_info(conversation):
-        if lead_ready or bot_wrapping or _looks_like_closing(user_message) or len(conversation) >= 10:
+        if lead_ready or _looks_like_closing(user_message) or len(conversation) >= 24:
             notified_sessions.add(session_id)
             conversation_copy = list(conversation)
             images_copy = list(session_images.get(session_id, []))
