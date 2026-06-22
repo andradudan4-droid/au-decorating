@@ -1366,11 +1366,7 @@ def chat_endpoint():
             notified_sessions.add(session_id)
             conversation_copy = list(conversation)
             images_copy = list(session_images.get(session_id, []))
-            threading.Thread(
-                target=send_lead_email,
-                args=(conversation_copy, images_copy),
-                daemon=True,
-            ).start()
+            send_lead_email(conversation_copy, images_copy)
 
     return jsonify({"reply": ai_reply})
 
@@ -1414,11 +1410,7 @@ def upload_endpoint():
     # If we've already emailed this lead, forward the new photo as a follow-up
     # so it doesn't get lost.
     if session_id in notified_sessions:
-        threading.Thread(
-            target=send_photo_followup,
-            args=(list(conversation), [image]),
-            daemon=True,
-        ).start()
+        send_photo_followup(list(conversation), [image])
 
     return jsonify({"reply": reply})
 
