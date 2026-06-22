@@ -38,10 +38,9 @@ MAX_IMAGE_BYTES = 6 * 1024 * 1024  # per image, after base64 decode
 # in the conversation (server-side), so we never depend on the AI to flag a lead.
 
 EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
-# Matches UK-style numbers: 07xxx..., +44..., 01xxx/02xxx landlines, with
-# optional spaces/dashes. Digit-count is verified separately to avoid false hits.
-# We require a word boundary before to avoid matching partial numbers in longer strings.
-PHONE_RE = re.compile(r"(?<!\d)(?:\+44[\s-]?|0)[\d](?:[\s-]?\d){8,10}(?!\d)")
+# Matches UK mobile/landline numbers: 07xxx, 01xxx, 02xxx, +447xxx etc.
+# No capturing groups so findall returns plain strings.
+PHONE_RE = re.compile(r"(?<!\d)(?:\+44|0)\d[\d\s\-\.]{8,11}(?!\d)")
 # Full UK postcode, e.g. PO5 3AB, SW1A 1AA, M1 1AE (space optional).
 POSTCODE_RE = re.compile(r"\b[A-Za-z]{1,2}\d[A-Za-z\d]?\s*\d[A-Za-z]{2}\b")
 
@@ -61,16 +60,16 @@ def find_email(conversation):
 def find_phone(conversation):
     text = _customer_text(conversation)
     for candidate in PHONE_RE.findall(text):
-        # Strip all whitespace/dashes, then reformat cleanly
+        # candidate is always a plain string - no capturing groups in PHONE_RE
         digits = re.sub(r"\D", "", candidate)
-        if 10 <= len(digits) <= 12:
-            # Normalise to standard UK format: 07xxx xxxxxx or +44 7xxx xxxxxx
-            if digits.startswith("44"):
-                digits = "0" + digits[2:]
-            # Format as two groups: first 5 digits then last 6
-            if len(digits) == 11:
-                return f"{digits[:5]} {digits[5:]}"
-            return digits
+        # Reject 00-prefixed numbers (international dialling prefix, not a UK number)
+        if digits.startswith("00"):
+            continue
+        if digits.startswith("44"):
+            digits = "0" + digits[2:]
+        if len(digits) == 11 and digits.startswith("0"):
+            # Format as 07xxx xxxxxx (5 + 6)
+            return f"{digits[:5]} {digits[5:]}"
     return None
 
 
@@ -1066,7 +1065,7 @@ WIDGET_FRAME = """
         <div id="chatbox"></div>
         <div id="inputRow">
             <label id="attachBtn" title="Attach a photo of the job">
-                <input type="file" id="fileInput" accept="image/*" onchange="handleFile(this)">
+                <input type="file" id="fileInput" accept="image/*" multiple onchange="handleFiles(this)">
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M21.44 11.05l-9.19 9.19a5 5 0 0 1-7.07-7.07l9.19-9.19a3 3 0 0 1 4.24 4.24l-9.2 9.19a1 1 0 0 1-1.41-1.41l8.49-8.49" stroke="#0a0a0a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
@@ -1175,43 +1174,39 @@ WIDGET_FRAME = """
             });
         }
 
-        async function handleFile(input) {
-            const file = input.files && input.files[0];
-            input.value = '';                 // allow re-selecting the same file
-            if (!file) return;
-            if (!file.type || file.type.indexOf('image/') !== 0) {
-                addMessage("That doesn't look like a photo - please choose an image.", 'bot');
-                return;
-            }
-
+        async function handleFiles(input) {
+            const files = Array.from(input.files || []);
+            input.value = '';
+            if (!files.length) return;
             const attachBtn = document.getElementById('attachBtn');
             attachBtn.classList.add('busy');
-
-            let dataUrl;
-            try {
-                dataUrl = await resizeImage(file);
-            } catch (e) {
-                attachBtn.classList.remove('busy');
-                addMessage("Sorry, I couldn't read that image. If it's a HEIC photo from an iPhone, try saving it as a JPG first.", 'bot');
-                return;
+            for (const file of files) {
+                if (!file.type || file.type.indexOf('image/') !== 0) {
+                    addMessage("That doesn't look like a photo - please choose an image.", 'bot');
+                    continue;
+                }
+                let dataUrl;
+                try {
+                    dataUrl = await resizeImage(file);
+                } catch (e) {
+                    addMessage("Sorry, I couldn't read that image. If it's a HEIC photo from an iPhone, try saving it as a JPG first.", 'bot');
+                    continue;
+                }
+                addImageMessage(dataUrl);
+                try {
+                    const response = await fetch('/upload', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ image: dataUrl }),
+                        credentials: 'same-origin'
+                    });
+                    const data = await response.json();
+                    addMessage(data.reply, 'bot');
+                } catch (e) {
+                    addMessage("Sorry, the photo didn't upload - please try again in a moment.", 'bot');
+                }
             }
-
-            addImageMessage(dataUrl);
-
-            try {
-                const response = await fetch('/upload', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ image: dataUrl }),
-                    credentials: 'same-origin'
-                });
-                const data = await response.json();
-                addMessage(data.reply, 'bot');
-            } catch (e) {
-                addMessage("Sorry, the photo didn't upload - please try again in a moment.", 'bot');
-            } finally {
-                attachBtn.classList.remove('busy');
-            }
+            attachBtn.classList.remove('busy');
         }
     </script>
 </body>
