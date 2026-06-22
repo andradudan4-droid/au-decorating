@@ -1325,7 +1325,7 @@ def chat_endpoint():
         response = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=conversation,
-            max_tokens=160,
+            max_tokens=220,
             timeout=20,
         )
         ai_reply = response.choices[0].message.content
@@ -1353,8 +1353,17 @@ def chat_endpoint():
     # type make it in, instead of firing the instant a phone number appears.
     # The closing-phrase and long-chat checks are safety nets so a lead is never
     # lost if the tag is missed. Sent at most once per visitor.
+    # Decide whether to email the lead. Primary signal is the assistant's READY
+    # tag, but we ALSO send when the assistant is clearly wrapping up, when the
+    # visitor signs off, or after a few exchanges - so a lead is never lost even
+    # if the model forgets the tag or it gets truncated by the token limit.
+    bot_wrapping = bool(re.search(
+        r"(be in touch|get back to you|pass(?:ed)? (?:this|your|the)|"
+        r"free (?:estimate|quote)|in touch (?:shortly|soon)|reach out|"
+        r"sent (?:this|your|the)|details (?:over|to)|Mehmet will|"
+        r"Mehmet(?:'| wi)ll be|speak soon|hear from)", ai_reply, re.I))
     if session_id not in notified_sessions and has_contact_info(conversation):
-        if lead_ready or _looks_like_closing(user_message) or len(conversation) >= 16:
+        if lead_ready or bot_wrapping or _looks_like_closing(user_message) or len(conversation) >= 10:
             notified_sessions.add(session_id)
             conversation_copy = list(conversation)
             images_copy = list(session_images.get(session_id, []))
