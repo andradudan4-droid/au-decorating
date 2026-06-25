@@ -10,16 +10,22 @@ import requests
 from groq import Groq
 
 app = Flask(__name__)
-app.secret_key = "dev-secret-key-change-this-later"
+app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-key-change-this-later")
 app.config["SESSION_COOKIE_SAMESITE"] = "None"
 app.config["SESSION_COOKIE_SECURE"] = True
 # Photos are resized in the browser before upload, so payloads are small.
 # This is a safety cap to reject anything abnormally large.
 app.config["MAX_CONTENT_LENGTH"] = 12 * 1024 * 1024  # 12 MB
 
-client = Groq(
-    api_key=os.environ.get("GROQ_API_KEY")
-)
+_groq_client = None
+
+
+def client_chat(**kwargs):
+    """Create the Groq client only when chat is actually used."""
+    global _groq_client
+    if _groq_client is None:
+        _groq_client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
+    return _groq_client.chat.completions.create(**kwargs)
 
 # --- Email notification settings ---
 # Render's free tier blocks direct SMTP (the old Gmail approach), so we
@@ -132,7 +138,7 @@ Other notes:"""
 def summarise_lead(conversation):
     """Uses the model to extract a tidy, organised lead from the chat."""
     try:
-        resp = client.chat.completions.create(
+        resp = client_chat(
             model="llama-3.3-70b-versatile",
             messages=[
                 {"role": "system", "content": LEAD_SUMMARY_PROMPT},
@@ -644,6 +650,11 @@ BASE_STYLE = """
   footer .flogo{width:84px;margin:0 auto 16px;opacity:.95}
   footer a{color:var(--gold);text-decoration:none}
   footer .areas{font-size:12.5px;opacity:.85;max-width:620px;margin:10px auto 0}
+  .wa-float{position:fixed;left:22px;bottom:24px;z-index:999998;width:60px;height:60px;border-radius:50%;
+    background:#25D366;color:#fff;display:flex;align-items:center;justify-content:center;
+    box-shadow:0 10px 28px rgba(0,0,0,.32);transition:transform .15s ease}
+  .wa-float:hover{transform:scale(1.06)}
+  .wa-float svg{width:32px;height:32px}
 
   @media(max-width:640px){
     nav{padding:12px 16px}
@@ -651,6 +662,7 @@ BASE_STYLE = """
     .band{padding:54px 18px}
     .hero{min-height:78vh;padding:72px 18px}
     .work-grid{grid-template-columns:1fr 1fr;gap:11px}
+    .wa-float{left:14px;bottom:18px;width:54px;height:54px}
   }
 </style>
 """
@@ -674,7 +686,7 @@ FOOTER = """
   <div style="color:var(--ink);letter-spacing:.04em;margin-bottom:6px;">AU Decorating Ltd &middot; Portsmouth</div>
   <div>Free estimates every day &middot; flexible scheduling &middot; 24-hour call-out</div>
   <div class="areas">Covering Portsmouth, Southsea, Fareham, Gosport, Havant, Waterlooville, Cosham, Portchester &amp; surrounding areas.</div>
-  <div style="margin-top:14px;"><a href="tel:+447376204980">07376 204980</a> &nbsp;&middot;&nbsp; <a href="/privacy">Privacy Policy</a></div>
+  <div style="margin-top:14px;"><a href="tel:+447376204980">07376 204980</a> &nbsp;&middot;&nbsp; <a href="/privacy-policy">Privacy Policy</a></div>
   <div style="margin-top:10px;font-size:12px;opacity:.6;">
     AU Decorating Limited &middot; Company No. 14912651 &middot; Registered in England &amp; Wales
     &nbsp;&middot;&nbsp;
@@ -683,6 +695,12 @@ FOOTER = """
     <a href="https://share.google/5aW935xz7J23tAKej" target="_blank" rel="noopener">Google Reviews</a>
   </div>
 </footer>
+<a class="wa-float" href="https://wa.me/447376204980" target="_blank" rel="noopener" aria-label="WhatsApp AU Decorating">
+  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <path d="M17.5 14.4c-.3-.2-1.7-.8-2-.9-.3-.1-.5-.2-.7.2-.2.3-.7.9-.9 1.1-.2.2-.3.2-.6.1-1.8-.9-3-1.6-4.2-3.6-.3-.5.3-.5.8-1.6.1-.2 0-.4 0-.5 0-.2-.7-1.6-.9-2.2-.2-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1 1-1 2.5s1.1 2.9 1.2 3.1c.2.2 2.1 3.3 5.2 4.6 2 .8 2.7.9 3.7.8.6-.1 1.7-.7 2-1.4.2-.7.2-1.2.2-1.4-.1-.1-.3-.2-.6-.3z"/>
+    <path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2c-1.5 0-3-.4-4.3-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2z"/>
+  </svg>
+</a>
 """
 
 WIDGET_INCLUDE = '<script src="/widget.js"></script>'
@@ -1020,7 +1038,7 @@ WIDGET_JS = """
     function applyIframeStyle() {
         var isMobile = window.innerWidth <= 600;
         if (isMobile) {
-            iframe.style.cssText = 'position:fixed;bottom:0;right:0;left:0;top:0;width:100%;height:100%;border:none;border-radius:0;box-shadow:none;display:none;z-index:999999;';
+            iframe.style.cssText = 'position:fixed;inset:0;width:100vw;height:100vh;height:100dvh;border:none;border-radius:0;box-shadow:none;display:none;z-index:999999;background:#fff;';
         } else {
             iframe.style.cssText = 'position:fixed;bottom:112px;right:24px;width:400px;height:580px;border:none;border-radius:18px;box-shadow:0 12px 40px rgba(0,0,0,0.25);display:none;z-index:999999;';
         }
@@ -1029,13 +1047,19 @@ WIDGET_JS = """
     window.addEventListener('resize', function () {
         var wasOpen = iframe.style.display === 'block';
         applyIframeStyle();
-        if (wasOpen) iframe.style.display = 'block';
+        if (wasOpen) {
+            iframe.style.display = 'block';
+            document.body.style.overflow = window.innerWidth <= 600 ? 'hidden' : '';
+            bubble.style.display = window.innerWidth <= 600 ? 'none' : 'flex';
+        }
     });
 
     var isOpen = false;
     bubble.addEventListener('click', function () {
         isOpen = !isOpen;
         iframe.style.display = isOpen ? 'block' : 'none';
+        document.body.style.overflow = isOpen && window.innerWidth <= 600 ? 'hidden' : '';
+        bubble.style.display = isOpen && window.innerWidth <= 600 ? 'none' : 'flex';
     });
 
     document.body.appendChild(bubble);
@@ -1045,6 +1069,8 @@ WIDGET_JS = """
         if (event.data === 'close-au-chat') {
             isOpen = false;
             iframe.style.display = 'none';
+            document.body.style.overflow = '';
+            bubble.style.display = 'flex';
         }
     });
 })();
@@ -1056,17 +1082,18 @@ WIDGET_FRAME = """
 <head>
     <style>
         * { box-sizing: border-box; }
-        body { margin: 0; font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif; }
-        #chatWindow { display: flex; flex-direction: column; height: 100vh; background: white; border-radius: 16px; overflow: hidden; }
+        html, body { height: 100%; overflow: hidden; }
+        body { margin: 0; font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif; background: white; }
+        #chatWindow { display: flex; flex-direction: column; height: 100vh; height: 100dvh; background: white; border-radius: 16px; overflow: hidden; }
         #chatHeader { background: #0a0a0a; color: #D4AF37; padding: 20px 22px; }
         #chatHeader .title { font-size: 17px; font-weight: 600; }
         #chatHeader .subtitle { font-size: 13px; opacity: 0.75; color: #e8d9a8; }
-        #chatbox { flex: 1; padding: 20px; overflow-y: auto; background: #f7f7f5; }
+        #chatbox { flex: 1; min-height: 0; padding: 20px; overflow-y: auto; background: #f7f7f5; -webkit-overflow-scrolling: touch; }
         .msg { margin: 10px 0; padding: 12px 16px; border-radius: 16px; max-width: 82%; font-size: 16px; line-height: 1.45; }
         .user { background: #0a0a0a; color: #D4AF37; margin-left: auto; }
         .bot { background: #ECECEC; color: #222; }
         .typing { color: #999; letter-spacing: 2px; }
-        #inputRow { display: flex; border-top: 1px solid #eee; padding: 12px; background: white; }
+        #inputRow { display: flex; flex: none; border-top: 1px solid #eee; padding: 12px; background: white; }
         #userInput { flex: 1; padding: 12px 16px; border: 1px solid #ddd; border-radius: 24px; font-size: 16px; outline: none; }
         #userInput:focus { border-color: #D4AF37; }
         #sendBtn { border: none; background: #0a0a0a; color: #D4AF37; width: 46px; height: 46px; border-radius: 50%; margin-left: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
@@ -1077,6 +1104,16 @@ WIDGET_FRAME = """
         #attachBtn.busy { opacity: 0.45; pointer-events: none; }
         .msg img.photo { max-width: 190px; width: 100%; border-radius: 12px; display: block; }
         .msg.photo-msg { padding: 5px; background: #0a0a0a; }
+        @media (max-width: 600px) {
+            #chatWindow { border-radius: 0; }
+            #chatHeader { padding: 12px 14px; padding-top: max(12px, env(safe-area-inset-top)); }
+            #chatHeader .subtitle { display: none; }
+            #chatbox { padding: 14px 12px; }
+            .msg { max-width: 88%; font-size: 15px; padding: 10px 13px; }
+            #inputRow { padding: 10px 8px; padding-bottom: max(10px, env(safe-area-inset-bottom)); gap: 6px; }
+            #userInput { min-width: 0; font-size: 16px; padding: 11px 13px; }
+            #sendBtn, #attachBtn { width: 42px; height: 42px; margin-left: 0; margin-right: 0; }
+        }
     </style>
 </head>
 <body>
@@ -1157,6 +1194,13 @@ WIDGET_FRAME = """
                 addMessage("Sorry, something went wrong sending that - please try again in a moment.", 'bot');
             }
         }
+
+        document.getElementById('userInput').addEventListener('focus', function () {
+            setTimeout(function () {
+                const chatbox = document.getElementById('chatbox');
+                chatbox.scrollTop = chatbox.scrollHeight;
+            }, 250);
+        });
 
         function addImageMessage(src) {
             const chatbox = document.getElementById('chatbox');
@@ -1246,7 +1290,7 @@ def ensure_session():
 
 @app.route("/sitemap.xml")
 def sitemap():
-    pages = ["/", "/services", "/gallery", "/contact"]
+    pages = ["/", "/services", "/gallery", "/contact", "/privacy-policy"]
     base = "https://au-decorating.com"
     urls = "".join(f"<url><loc>{base}{p}</loc></url>" for p in pages)
     xml = f'<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{urls}</urlset>'
@@ -1277,6 +1321,7 @@ def contact():
     return render_template_string(CONTACT_PAGE)
 
 @app.route("/privacy")
+@app.route("/privacy-policy")
 def privacy():
     ensure_session()
     return render_template_string(PRIVACY_PAGE)
@@ -1327,7 +1372,7 @@ def chat_endpoint():
     conversation.append({"role": "user", "content": user_message})
 
     try:
-        response = client.chat.completions.create(
+        response = client_chat(
             model="llama-3.3-70b-versatile",
             messages=conversation,
             max_tokens=256,
