@@ -705,6 +705,17 @@ FOOTER = """
 
 WIDGET_INCLUDE = '<script src="/widget.js"></script>'
 
+GOOGLE_TAG = """
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-29ZTK4DW1W"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-29ZTK4DW1W');
+</script>
+"""
+
 SLIDER_JS = """
 <script>
 (function(){
@@ -755,7 +766,7 @@ HOME_PAGE = """
   "sameAs": ["https://www.checkatrade.com/trades/audecoratinglimited"]
 }
 </script>
-""" + BASE_STYLE + """</head><body>
+""" + GOOGLE_TAG + BASE_STYLE + """</head><body>
 """ + NAV + """
 
 <header class="hero">
@@ -882,7 +893,7 @@ HOME_PAGE = """
 
 SERVICES_PAGE = """
 <!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Services - AU Decorating Ltd</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">""" + BASE_STYLE + """</head><body>
+<meta name="viewport" content="width=device-width, initial-scale=1">""" + GOOGLE_TAG + BASE_STYLE + """</head><body>
 """ + NAV + """
 <section class="band">
   <div class="wrap">
@@ -913,7 +924,7 @@ SERVICES_PAGE = """
 
 GALLERY_PAGE = """
 <!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Gallery - AU Decorating Ltd</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">""" + BASE_STYLE + """</head><body>
+<meta name="viewport" content="width=device-width, initial-scale=1">""" + GOOGLE_TAG + BASE_STYLE + """</head><body>
 """ + NAV + """
 <section class="band">
   <div class="wrap">
@@ -961,7 +972,7 @@ GALLERY_PAGE = """
 
 CONTACT_PAGE = """
 <!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Contact - AU Decorating Ltd</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">""" + BASE_STYLE + """</head><body>
+<meta name="viewport" content="width=device-width, initial-scale=1">""" + GOOGLE_TAG + BASE_STYLE + """</head><body>
 """ + NAV + """
 <section class="band">
   <div class="wrap wrap--narrow">
@@ -985,7 +996,7 @@ CONTACT_PAGE = """
 
 PRIVACY_PAGE = """
 <!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Privacy Policy - AU Decorating Ltd</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">""" + BASE_STYLE + """</head><body>
+<meta name="viewport" content="width=device-width, initial-scale=1">""" + GOOGLE_TAG + BASE_STYLE + """</head><body>
 """ + NAV + """
 <section class="band">
   <div class="wrap wrap--narrow">
@@ -1005,7 +1016,7 @@ PRIVACY_PAGE = """
       <h3>How long we keep it</h3>
       <p>We keep enquiry details only as long as needed to deal with your enquiry and any work that follows, and for our normal business and tax records, after which they are deleted.</p>
       <h3>Cookies</h3>
-      <p>The site uses a single essential cookie to remember your chat session. We don&rsquo;t use advertising or tracking cookies. We use privacy-friendly, cookie-free analytics to count visits.</p>
+      <p>The site uses an essential cookie to remember your chat session. We also use Google Analytics to understand visits and improve the website. We don&rsquo;t use advertising cookies or sell your data.</p>
       <h3>Your rights</h3>
       <p>You can ask us to see, correct, or delete the information we hold about you, or to stop using it. Just get in touch and we&rsquo;ll sort it. You also have the right to complain to the UK&rsquo;s Information Commissioner&rsquo;s Office (ico.org.uk).</p>
       <h3>Contact</h3>
