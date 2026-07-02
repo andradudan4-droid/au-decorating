@@ -1036,6 +1036,9 @@ HOME_PAGE = """
     el._done = true;
     try {
       var map = L.map('cov-map', { scrollWheelZoom:false });
+      /* the map needs an initial view BEFORE circle.getBounds() can be
+         computed - without this Leaflet throws and the map stays blank */
+      map.setView([BASE.lat, BASE.lng], 10);
 
       var dark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png', {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
