@@ -515,6 +515,7 @@ def _decode_image_data_url(data_url):
     }
 
 BASE_STYLE = """
+<meta name="google-site-verification" content="dwls3w2IfMF4Y6moYnBLGqjCStb8iGrlxWKWmF4AZyU" />
 <link rel="icon" type="image/png" href="/static/images/logo.png">
 <meta name="theme-color" content="#14110d">
 <meta property="og:type" content="website">
