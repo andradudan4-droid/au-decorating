@@ -656,7 +656,7 @@ BASE_STYLE = """
   .cov-towns{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px}
   .cov-towns span{border:1px solid var(--line);background:var(--panel);color:var(--ink);
     border-radius:999px;padding:9px 18px;font-size:14px;letter-spacing:.02em}
-  .leaflet-container{font-family:inherit}
+  .leaflet-container{font-family:inherit}\n  #cov-map.cov-tint .leaflet-tile{filter:grayscale(1) invert(1) brightness(.88) contrast(.9)}
   @media(max-width:640px){
     #cov-map{height:320px}
     .cov-towns span{padding:8px 14px;font-size:13px}
@@ -1023,48 +1023,57 @@ HOME_PAGE = """
   </div>
 </section>
 
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 (function(){
   /* 10-mile service radius around PO5 1JY (Southsea). */
-  var BASE = { lat: 50.7923, lng: -1.0866 }, RADIUS_MILES = 10, map = null, loaded = false;
+  var BASE = { lat: 50.7923, lng: -1.0866 }, RADIUS_MILES = 10;
 
   function initMap(){
-    if(map || !window.L) return;
-    map = L.map('cov-map', { scrollWheelZoom:false, attributionControl:true });
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
-      maxZoom: 18
-    }).addTo(map);
-    var circle = L.circle([BASE.lat, BASE.lng], {
-      radius: RADIUS_MILES * 1609.34,
-      color: '#c9a24b', weight: 2, fillColor: '#c9a24b', fillOpacity: 0.1
-    }).addTo(map);
-    L.circleMarker([BASE.lat, BASE.lng], {
-      radius: 7, color: '#c9a24b', fillColor: '#e7c977', fillOpacity: 1, weight: 2
-    }).addTo(map).bindPopup('<b>AU Decorating</b><br>Southsea, Portsmouth');
-    map.fitBounds(circle.getBounds(), { padding: [16,16] });
+    var el = document.getElementById('cov-map');
+    if(!el || !window.L || el._done) return;
+    el._done = true;
+    try {
+      var map = L.map('cov-map', { scrollWheelZoom:false });
+
+      var dark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+        maxZoom: 18
+      });
+
+      /* if the dark tiles are blocked on someone's network, fall back to
+         standard OSM tiles and tint them dark with a CSS filter */
+      var fellBack = false;
+      dark.on('tileerror', function(){
+        if(fellBack) return; fellBack = true;
+        map.removeLayer(dark);
+        el.classList.add('cov-tint');
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+          maxZoom: 18
+        }).addTo(map);
+      });
+      dark.addTo(map);
+
+      var circle = L.circle([BASE.lat, BASE.lng], {
+        radius: RADIUS_MILES * 1609.34,
+        color: '#c9a24b', weight: 2, fillColor: '#c9a24b', fillOpacity: 0.1
+      }).addTo(map);
+
+      L.circleMarker([BASE.lat, BASE.lng], {
+        radius: 7, color: '#c9a24b', fillColor: '#e7c977', fillOpacity: 1, weight: 2
+      }).addTo(map).bindPopup('<b>AU Decorating</b><br>Southsea, Portsmouth');
+
+      map.fitBounds(circle.getBounds(), { padding: [16,16] });
+
+      /* re-measure once everything has settled (fixes blank/misaligned tiles) */
+      setTimeout(function(){ map.invalidateSize(); map.fitBounds(circle.getBounds(), { padding:[16,16] }); }, 400);
+    } catch(e){ console.error('coverage map:', e); }
   }
 
-  function loadLeaflet(){
-    if(loaded) return; loaded = true;
-    var css = document.createElement('link');
-    css.rel = 'stylesheet';
-    css.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-    document.head.appendChild(css);
-    var js = document.createElement('script');
-    js.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-    js.onload = initMap;
-    document.head.appendChild(js);
-  }
-
-  /* only load the map once the section scrolls into view (keeps the page fast) */
-  var sec = document.getElementById('coverage');
-  if('IntersectionObserver' in window){
-    var io = new IntersectionObserver(function(entries){
-      if(entries[0].isIntersecting){ loadLeaflet(); io.disconnect(); }
-    }, { rootMargin: '300px' });
-    io.observe(sec);
-  } else { loadLeaflet(); }
+  if(document.readyState === 'complete'){ initMap(); }
+  else { window.addEventListener('load', initMap); }
 })();
 </script>
 
