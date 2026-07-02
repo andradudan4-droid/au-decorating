@@ -451,6 +451,12 @@ CONVERSATION FLOW — work through these one at a time, in order:
    to Mehmet so he knows how quickly to get back.
 7. Get their name, postcode or area, and best contact number or email.
    Quickly repeat the number or email back to check you've typed it right.
+   COVERAGE: We cover roughly a 15-mile radius of Southsea — Portsmouth,
+   Fareham, Gosport, Havant, Waterlooville, Emsworth, Hayling Island,
+   Portchester and everywhere in between. If their area is clearly a long way
+   outside that (another county, London, etc.), be upfront that it's outside
+   the usual patch but still take their details — Mehmet sometimes travels
+   further for bigger jobs and will let them know either way.
 8. Once you've worked through everything above, wrap up warmly and confirm
    their enquiry has been sent over to Mehmet, who'll be in touch about a free
    estimate - usually the same day.
@@ -616,6 +622,51 @@ BASE_STYLE = """
     color:#f1eadc;font-size:12.5px;padding:26px 12px 11px;letter-spacing:.02em}
   figure.work.tall img{aspect-ratio:4/6}
 
+  /* lightbox */
+  figure.work{cursor:zoom-in}
+  .lb{position:fixed;inset:0;z-index:999997;background:rgba(10,8,5,.94);display:none;
+    align-items:center;justify-content:center;padding:24px;backdrop-filter:blur(6px)}
+  .lb.open{display:flex}
+  .lb img{max-width:92vw;max-height:82vh;width:auto;height:auto;border-radius:10px;
+    border:1px solid var(--line);box-shadow:0 24px 70px rgba(0,0,0,.6);
+    user-select:none;-webkit-user-drag:none}
+  .lb .lb-cap{position:absolute;left:0;right:0;bottom:26px;text-align:center;color:var(--gold-soft);
+    font-size:14px;letter-spacing:.04em;padding:0 70px;pointer-events:none}
+  .lb .lb-count{position:absolute;top:22px;left:26px;color:var(--mut);font-size:13px;letter-spacing:.1em}
+  .lb button{position:absolute;background:rgba(15,12,8,.8);border:1px solid var(--line);color:var(--gold);
+    width:46px;height:46px;border-radius:50%;font-size:22px;line-height:1;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;transition:background .15s,color .15s}
+  .lb button:hover{background:var(--gold);color:#17130c}
+  .lb .lb-close{top:18px;right:20px}
+  .lb .lb-prev{left:14px;top:50%;transform:translateY(-50%)}
+  .lb .lb-next{right:14px;top:50%;transform:translateY(-50%)}
+  @media(max-width:640px){
+    .lb{padding:12px}
+    .lb img{max-width:96vw;max-height:74vh}
+    .lb .lb-prev,.lb .lb-next{width:40px;height:40px}
+    .lb .lb-cap{bottom:18px;padding:0 16px;font-size:12.5px}
+  }
+
+  /* coverage checker */
+  .cov-grid{display:grid;grid-template-columns:1fr 1fr;gap:26px;align-items:stretch}
+  @media(max-width:820px){.cov-grid{grid-template-columns:1fr}}
+  #cov-map{min-height:340px;border-radius:14px;border:1px solid var(--line);background:#0b0906;z-index:1}
+  .cov-box{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:26px;
+    display:flex;flex-direction:column;justify-content:center}
+  .cov-box h3{font-family:'Playfair Display',serif;color:var(--ink);margin:0 0 8px;font-size:21px;font-weight:600}
+  .cov-box p{color:var(--mut);font-size:14.5px;margin:0 0 18px}
+  .cov-row{display:flex;gap:10px;flex-wrap:wrap}
+  .cov-row input{flex:1;min-width:150px;background:#0b0906;border:1px solid var(--line);color:var(--ink);
+    border-radius:999px;padding:13px 18px;font-size:15px;letter-spacing:.08em;text-transform:uppercase;outline:none}
+  .cov-row input:focus{border-color:var(--gold)}
+  .cov-row .btn{border:none;cursor:pointer}
+  .cov-result{margin-top:16px;font-size:15px;line-height:1.55;display:none;border-radius:12px;
+    padding:14px 16px;border:1px solid var(--line)}
+  .cov-result.ok{display:block;background:rgba(201,162,75,.1);color:var(--gold-soft)}
+  .cov-result.no{display:block;background:rgba(255,255,255,.04);color:var(--mut)}
+  .cov-result b{color:var(--ink)}
+  .leaflet-container{font-family:inherit}
+
   /* cards / services */
   .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:24px;position:relative}
@@ -674,6 +725,7 @@ NAV = """
     <a href="/#work">Our work</a>
     <a href="/#services">Services</a>
     <a href="/gallery">Gallery</a>
+    <a href="/#coverage">Areas</a>
     <a href="/#reviews">Reviews</a>
     <a class="navcta" href="https://wa.me/447376204980" target="_blank">Free quote</a>
   </div>
@@ -685,7 +737,7 @@ FOOTER = """
   <img class="flogo" src="/static/images/logo.png" alt="AU Decorating">
   <div style="color:var(--ink);letter-spacing:.04em;margin-bottom:6px;">AU Decorating Ltd &middot; Portsmouth</div>
   <div>Free estimates every day &middot; flexible scheduling &middot; 24-hour call-out</div>
-  <div class="areas">Covering Portsmouth, Southsea, Fareham, Gosport, Havant, Waterlooville, Cosham, Portchester &amp; surrounding areas.</div>
+  <div class="areas">Covering everywhere within 15 miles of Southsea &mdash; Portsmouth, Fareham, Gosport, Havant, Waterlooville, Emsworth, Hayling Island, Portchester &amp; more. <a href="/#coverage">Check your postcode</a>.</div>
   <div style="margin-top:14px;"><a href="tel:+447376204980">07376 204980</a> &nbsp;&middot;&nbsp; <a href="/privacy-policy">Privacy Policy</a></div>
   <div style="margin-top:10px;font-size:12px;opacity:.6;">
     AU Decorating Limited &middot; Company No. 14912651 &middot; Registered in England &amp; Wales
@@ -725,6 +777,70 @@ SLIDER_JS = """
     function upd(){ ba.style.setProperty('--pos', r.value+'%'); }
     r.addEventListener('input',upd); upd();
   });
+})();
+</script>
+"""
+
+LIGHTBOX_JS = """
+<script>
+(function(){
+  var figs = Array.prototype.slice.call(document.querySelectorAll('figure.work'));
+  if(!figs.length) return;
+
+  var lb = document.createElement('div');
+  lb.className = 'lb';
+  lb.setAttribute('role','dialog');
+  lb.setAttribute('aria-label','Image viewer');
+  lb.innerHTML =
+    '<span class="lb-count"></span>' +
+    '<img alt="">' +
+    '<div class="lb-cap"></div>' +
+    '<button class="lb-close" aria-label="Close">&times;</button>' +
+    '<button class="lb-prev" aria-label="Previous photo">&#8249;</button>' +
+    '<button class="lb-next" aria-label="Next photo">&#8250;</button>';
+  document.body.appendChild(lb);
+
+  var img = lb.querySelector('img'),
+      cap = lb.querySelector('.lb-cap'),
+      count = lb.querySelector('.lb-count'),
+      idx = 0;
+
+  function show(i){
+    idx = (i + figs.length) % figs.length;
+    var f = figs[idx], src = f.querySelector('img');
+    img.src = src.src;
+    img.alt = src.alt || '';
+    var c = f.querySelector('figcaption');
+    cap.textContent = c ? c.textContent : '';
+    count.textContent = (idx + 1) + ' / ' + figs.length;
+  }
+  function open(i){ show(i); lb.classList.add('open'); document.body.style.overflow='hidden'; }
+  function close(){ lb.classList.remove('open'); document.body.style.overflow=''; }
+
+  figs.forEach(function(f, i){
+    f.addEventListener('click', function(){ open(i); });
+  });
+  lb.querySelector('.lb-close').addEventListener('click', close);
+  lb.querySelector('.lb-prev').addEventListener('click', function(e){ e.stopPropagation(); show(idx-1); });
+  lb.querySelector('.lb-next').addEventListener('click', function(e){ e.stopPropagation(); show(idx+1); });
+  lb.addEventListener('click', function(e){ if(e.target === lb) close(); });
+
+  document.addEventListener('keydown', function(e){
+    if(!lb.classList.contains('open')) return;
+    if(e.key === 'Escape') close();
+    if(e.key === 'ArrowLeft') show(idx-1);
+    if(e.key === 'ArrowRight') show(idx+1);
+  });
+
+  /* swipe on mobile */
+  var tx = null;
+  lb.addEventListener('touchstart', function(e){ tx = e.touches[0].clientX; }, {passive:true});
+  lb.addEventListener('touchend', function(e){
+    if(tx === null) return;
+    var dx = e.changedTouches[0].clientX - tx;
+    if(Math.abs(dx) > 50){ dx > 0 ? show(idx-1) : show(idx+1); }
+    tx = null;
+  }, {passive:true});
 })();
 </script>
 """
@@ -876,6 +992,133 @@ HOME_PAGE = """
   </div>
 </section>
 
+<section class="band band--panel" id="coverage">
+  <div class="wrap">
+    <div class="head">
+      <span class="eyebrow">Where we work</span><div class="rule"></div>
+      <h2 class="title serif">Do we cover your area?</h2>
+      <p class="sub">We take on jobs within 15 miles of Southsea. Pop in your postcode and find out in a second.</p>
+    </div>
+    <div class="cov-grid">
+      <div class="cov-box">
+        <h3>Check your postcode</h3>
+        <p>Covering Portsmouth, Southsea, Fareham, Gosport, Havant, Waterlooville, Emsworth, Hayling Island, Portchester &amp; everywhere in between.</p>
+        <div class="cov-row">
+          <input id="cov-pc" type="text" placeholder="e.g. PO14 1AS" autocomplete="postal-code" aria-label="Your postcode" maxlength="8">
+          <button class="btn" id="cov-go" type="button">Check</button>
+        </div>
+        <div class="cov-result" id="cov-res" role="status"></div>
+      </div>
+      <div id="cov-map" aria-label="Map showing our 15 mile coverage area around Southsea"></div>
+    </div>
+  </div>
+</section>
+
+<script>
+(function(){
+  /* Base of the 15-mile service radius: PO5 1JY (Southsea). Exact coords are
+     fetched from postcodes.io at runtime; these are the fallback. */
+  var BASE = { lat: 50.7923, lng: -1.0866 }, RADIUS_MILES = 15,
+      map = null, pin = null, leafletLoaded = false;
+
+  function milesBetween(a, b){
+    var R = 3958.8, dLat = (b.lat - a.lat) * Math.PI/180, dLng = (b.lng - a.lng) * Math.PI/180;
+    var s = Math.sin(dLat/2)*Math.sin(dLat/2) +
+            Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(dLng/2)*Math.sin(dLng/2);
+    return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1-s));
+  }
+
+  function initMap(){
+    if(map || !window.L) return;
+    map = L.map('cov-map', { scrollWheelZoom:false, attributionControl:true });
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+      maxZoom: 18
+    }).addTo(map);
+    var circle = L.circle([BASE.lat, BASE.lng], {
+      radius: RADIUS_MILES * 1609.34,
+      color: '#c9a24b', weight: 2, fillColor: '#c9a24b', fillOpacity: 0.08
+    }).addTo(map);
+    L.circleMarker([BASE.lat, BASE.lng], {
+      radius: 7, color: '#c9a24b', fillColor: '#e7c977', fillOpacity: 1, weight: 2
+    }).addTo(map).bindPopup('<b>AU Decorating</b><br>Southsea, Portsmouth');
+    map.fitBounds(circle.getBounds(), { padding: [14,14] });
+  }
+
+  function loadLeaflet(){
+    if(leafletLoaded) return; leafletLoaded = true;
+    var css = document.createElement('link');
+    css.rel = 'stylesheet';
+    css.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+    document.head.appendChild(css);
+    var js = document.createElement('script');
+    js.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+    js.onload = initMap;
+    document.head.appendChild(js);
+    /* refine the base pin to the exact PO5 1JY rooftop */
+    fetch('https://api.postcodes.io/postcodes/PO51JY').then(function(r){ return r.json(); })
+      .then(function(d){
+        if(d && d.result){ BASE.lat = d.result.latitude; BASE.lng = d.result.longitude; }
+      }).catch(function(){});
+  }
+
+  /* only load the map once the section scrolls into view (keeps the page fast) */
+  var sec = document.getElementById('coverage');
+  if('IntersectionObserver' in window){
+    var io = new IntersectionObserver(function(entries){
+      if(entries[0].isIntersecting){ loadLeaflet(); io.disconnect(); }
+    }, { rootMargin: '300px' });
+    io.observe(sec);
+  } else { loadLeaflet(); }
+
+  var input = document.getElementById('cov-pc'),
+      btn = document.getElementById('cov-go'),
+      res = document.getElementById('cov-res');
+
+  function say(cls, html){ res.className = 'cov-result ' + cls; res.innerHTML = html; }
+
+  function check(){
+    var pc = (input.value || '').replace(/\\s+/g,'').toUpperCase();
+    if(pc.length < 5){ say('no', 'That doesn&rsquo;t look like a full UK postcode &mdash; try something like <b>PO14 1AS</b>.'); return; }
+    say('no', 'Checking&hellip;');
+    fetch('https://api.postcodes.io/postcodes/' + encodeURIComponent(pc))
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        if(!d || d.status !== 200 || !d.result){
+          say('no', 'We couldn&rsquo;t find that postcode &mdash; double-check it and try again.');
+          return;
+        }
+        var p = { lat: d.result.latitude, lng: d.result.longitude },
+            place = d.result.post_town || d.result.admin_ward || d.result.admin_district || 'your area',
+            dist = milesBetween(BASE, p), rounded = Math.round(dist * 10) / 10;
+        if(map && window.L){
+          if(pin){ map.removeLayer(pin); }
+          pin = L.circleMarker([p.lat, p.lng], {
+            radius: 7, color: '#efe9dd', fillColor: '#efe9dd', fillOpacity: 1, weight: 2
+          }).addTo(map).bindPopup(place);
+          map.fitBounds(L.latLngBounds([BASE.lat, BASE.lng], [p.lat, p.lng]).pad(0.35));
+        }
+        if(dist <= RADIUS_MILES){
+          say('ok', '&#10003; Good news &mdash; <b>' + place + '</b> is just <b>' + rounded +
+              ' miles</b> from us. We cover your area! Use the chat in the corner or ' +
+              '<a href="https://wa.me/447376204980" target="_blank" rel="noopener">WhatsApp us</a> for a free quote.');
+        } else if(dist <= RADIUS_MILES + 6){
+          say('ok', '<b>' + place + '</b> is <b>' + rounded + ' miles</b> away &mdash; slightly outside our usual patch, ' +
+              'but we often travel further for larger jobs. ' +
+              '<a href="https://wa.me/447376204980" target="_blank" rel="noopener">Message us</a> and we&rsquo;ll see what we can do.');
+        } else {
+          say('no', '<b>' + place + '</b> is <b>' + rounded + ' miles</b> away, which is sadly outside the area we cover. ' +
+              'Sorry we can&rsquo;t help this time!');
+        }
+      })
+      .catch(function(){ say('no', 'Something went wrong checking that postcode &mdash; please try again in a moment.'); });
+  }
+
+  btn.addEventListener('click', check);
+  input.addEventListener('keydown', function(e){ if(e.key === 'Enter') check(); });
+})();
+</script>
+
 <section class="band cta">
   <div class="wrap wrap--narrow">
     <span class="eyebrow">Free, no obligation</span>
@@ -887,7 +1130,7 @@ HOME_PAGE = """
     </div>
   </div>
 </section>
-""" + FOOTER + SLIDER_JS + WIDGET_INCLUDE + """
+""" + FOOTER + SLIDER_JS + LIGHTBOX_JS + WIDGET_INCLUDE + """
 </body></html>
 """
 
@@ -966,7 +1209,7 @@ GALLERY_PAGE = """
     </div>
   </div>
 </section>
-""" + FOOTER + SLIDER_JS + WIDGET_INCLUDE + """
+""" + FOOTER + SLIDER_JS + LIGHTBOX_JS + WIDGET_INCLUDE + """
 </body></html>
 """
 
