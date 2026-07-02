@@ -451,7 +451,7 @@ CONVERSATION FLOW — work through these one at a time, in order:
    to Mehmet so he knows how quickly to get back.
 7. Get their name, postcode or area, and best contact number or email.
    Quickly repeat the number or email back to check you've typed it right.
-   COVERAGE: We cover roughly a 15-mile radius of Southsea — Portsmouth,
+   COVERAGE: We cover roughly a 10-mile radius of Southsea — Portsmouth,
    Fareham, Gosport, Havant, Waterlooville, Emsworth, Hayling Island,
    Portchester and everywhere in between. If their area is clearly a long way
    outside that (another county, London, etc.), be upfront that it's outside
@@ -647,25 +647,20 @@ BASE_STYLE = """
     .lb .lb-cap{bottom:18px;padding:0 16px;font-size:12.5px}
   }
 
-  /* coverage checker */
-  .cov-grid{display:grid;grid-template-columns:1fr 1fr;gap:26px;align-items:stretch}
-  @media(max-width:820px){.cov-grid{grid-template-columns:1fr}}
-  #cov-map{min-height:340px;border-radius:14px;border:1px solid var(--line);background:#0b0906;z-index:1}
-  .cov-box{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:26px;
-    display:flex;flex-direction:column;justify-content:center}
-  .cov-box h3{font-family:'Playfair Display',serif;color:var(--ink);margin:0 0 8px;font-size:21px;font-weight:600}
-  .cov-box p{color:var(--mut);font-size:14.5px;margin:0 0 18px}
-  .cov-row{display:flex;gap:10px;flex-wrap:wrap}
-  .cov-row input{flex:1;min-width:150px;background:#0b0906;border:1px solid var(--line);color:var(--ink);
-    border-radius:999px;padding:13px 18px;font-size:15px;letter-spacing:.08em;text-transform:uppercase;outline:none}
-  .cov-row input:focus{border-color:var(--gold)}
-  .cov-row .btn{border:none;cursor:pointer}
-  .cov-result{margin-top:16px;font-size:15px;line-height:1.55;display:none;border-radius:12px;
-    padding:14px 16px;border:1px solid var(--line)}
-  .cov-result.ok{display:block;background:rgba(201,162,75,.1);color:var(--gold-soft)}
-  .cov-result.no{display:block;background:rgba(255,255,255,.04);color:var(--mut)}
-  .cov-result b{color:var(--ink)}
+  /* coverage map */
+  #cov-map{height:420px;border-radius:14px;border:1px solid var(--line);background:#0b0906;z-index:1}
+  .cov-badge{display:inline-flex;align-items:center;gap:8px;margin-top:22px;
+    background:linear-gradient(90deg,rgba(201,162,75,.22),rgba(201,162,75,.08));
+    border:1px solid var(--gold);color:var(--gold-soft);border-radius:999px;
+    padding:11px 22px;font-size:15px;font-weight:600;letter-spacing:.03em}
+  .cov-towns{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px}
+  .cov-towns span{border:1px solid var(--line);background:var(--panel);color:var(--ink);
+    border-radius:999px;padding:9px 18px;font-size:14px;letter-spacing:.02em}
   .leaflet-container{font-family:inherit}
+  @media(max-width:640px){
+    #cov-map{height:320px}
+    .cov-towns span{padding:8px 14px;font-size:13px}
+  }
 
   /* cards / services */
   .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px}
@@ -737,7 +732,7 @@ FOOTER = """
   <img class="flogo" src="/static/images/logo.png" alt="AU Decorating">
   <div style="color:var(--ink);letter-spacing:.04em;margin-bottom:6px;">AU Decorating Ltd &middot; Portsmouth</div>
   <div>Free estimates every day &middot; flexible scheduling &middot; 24-hour call-out</div>
-  <div class="areas">Covering everywhere within 15 miles of Southsea &mdash; Portsmouth, Fareham, Gosport, Havant, Waterlooville, Emsworth, Hayling Island, Portchester &amp; more. <a href="/#coverage">Check your postcode</a>.</div>
+  <div class="areas">Covering everywhere within 10 miles of Southsea &mdash; Portsmouth, Fareham, Gosport, Havant, Waterlooville, Emsworth, Hayling Island, Portchester &amp; more.</div>
   <div style="margin-top:14px;"><a href="tel:+447376204980">07376 204980</a> &nbsp;&middot;&nbsp; <a href="/privacy-policy">Privacy Policy</a></div>
   <div style="margin-top:10px;font-size:12px;opacity:.6;">
     AU Decorating Limited &middot; Company No. 14912651 &middot; Registered in England &amp; Wales
@@ -996,37 +991,42 @@ HOME_PAGE = """
   <div class="wrap">
     <div class="head">
       <span class="eyebrow">Where we work</span><div class="rule"></div>
-      <h2 class="title serif">Do we cover your area?</h2>
-      <p class="sub">We take on jobs within 15 miles of Southsea. Pop in your postcode and find out in a second.</p>
+      <h2 class="title serif">Areas we cover</h2>
+      <p class="sub">Based in Southsea and working right across Portsmouth and the surrounding towns. If you're inside the circle, we'll come to you.</p>
     </div>
-    <div class="cov-grid">
-      <div class="cov-box">
-        <h3>Check your postcode</h3>
-        <p>Covering Portsmouth, Southsea, Fareham, Gosport, Havant, Waterlooville, Emsworth, Hayling Island, Portchester &amp; everywhere in between.</p>
-        <div class="cov-row">
-          <input id="cov-pc" type="text" placeholder="e.g. PO14 1AS" autocomplete="postal-code" aria-label="Your postcode" maxlength="8">
-          <button class="btn" id="cov-go" type="button">Check</button>
-        </div>
-        <div class="cov-result" id="cov-res" role="status"></div>
-      </div>
-      <div id="cov-map" aria-label="Map showing our 15 mile coverage area around Southsea"></div>
+
+    <div id="cov-map" aria-label="Map showing our 10 mile coverage area around Southsea"></div>
+
+    <span class="cov-badge">&#128205; 10-mile radius of PO5 1JY</span>
+
+    <div class="cov-towns">
+      <span>Portsmouth</span>
+      <span>Southsea</span>
+      <span>Cosham</span>
+      <span>Portchester</span>
+      <span>Fareham</span>
+      <span>Gosport</span>
+      <span>Lee-on-the-Solent</span>
+      <span>Stubbington</span>
+      <span>Titchfield</span>
+      <span>Havant</span>
+      <span>Hayling Island</span>
+      <span>Emsworth</span>
+      <span>Waterlooville</span>
+      <span>Purbrook</span>
+      <span>Cowplain</span>
+      <span>Horndean</span>
+      <span>Denmead</span>
+      <span>Wickham</span>
+      <span>Rowlands Castle</span>
     </div>
   </div>
 </section>
 
 <script>
 (function(){
-  /* Base of the 15-mile service radius: PO5 1JY (Southsea). Exact coords are
-     fetched from postcodes.io at runtime; these are the fallback. */
-  var BASE = { lat: 50.7923, lng: -1.0866 }, RADIUS_MILES = 15,
-      map = null, pin = null, leafletLoaded = false;
-
-  function milesBetween(a, b){
-    var R = 3958.8, dLat = (b.lat - a.lat) * Math.PI/180, dLng = (b.lng - a.lng) * Math.PI/180;
-    var s = Math.sin(dLat/2)*Math.sin(dLat/2) +
-            Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(dLng/2)*Math.sin(dLng/2);
-    return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1-s));
-  }
+  /* 10-mile service radius around PO5 1JY (Southsea). */
+  var BASE = { lat: 50.7923, lng: -1.0866 }, RADIUS_MILES = 10, map = null, loaded = false;
 
   function initMap(){
     if(map || !window.L) return;
@@ -1037,16 +1037,16 @@ HOME_PAGE = """
     }).addTo(map);
     var circle = L.circle([BASE.lat, BASE.lng], {
       radius: RADIUS_MILES * 1609.34,
-      color: '#c9a24b', weight: 2, fillColor: '#c9a24b', fillOpacity: 0.08
+      color: '#c9a24b', weight: 2, fillColor: '#c9a24b', fillOpacity: 0.1
     }).addTo(map);
     L.circleMarker([BASE.lat, BASE.lng], {
       radius: 7, color: '#c9a24b', fillColor: '#e7c977', fillOpacity: 1, weight: 2
     }).addTo(map).bindPopup('<b>AU Decorating</b><br>Southsea, Portsmouth');
-    map.fitBounds(circle.getBounds(), { padding: [14,14] });
+    map.fitBounds(circle.getBounds(), { padding: [16,16] });
   }
 
   function loadLeaflet(){
-    if(leafletLoaded) return; leafletLoaded = true;
+    if(loaded) return; loaded = true;
     var css = document.createElement('link');
     css.rel = 'stylesheet';
     css.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
@@ -1055,11 +1055,6 @@ HOME_PAGE = """
     js.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
     js.onload = initMap;
     document.head.appendChild(js);
-    /* refine the base pin to the exact PO5 1JY rooftop */
-    fetch('https://api.postcodes.io/postcodes/PO51JY').then(function(r){ return r.json(); })
-      .then(function(d){
-        if(d && d.result){ BASE.lat = d.result.latitude; BASE.lng = d.result.longitude; }
-      }).catch(function(){});
   }
 
   /* only load the map once the section scrolls into view (keeps the page fast) */
@@ -1070,52 +1065,6 @@ HOME_PAGE = """
     }, { rootMargin: '300px' });
     io.observe(sec);
   } else { loadLeaflet(); }
-
-  var input = document.getElementById('cov-pc'),
-      btn = document.getElementById('cov-go'),
-      res = document.getElementById('cov-res');
-
-  function say(cls, html){ res.className = 'cov-result ' + cls; res.innerHTML = html; }
-
-  function check(){
-    var pc = (input.value || '').replace(/\\s+/g,'').toUpperCase();
-    if(pc.length < 5){ say('no', 'That doesn&rsquo;t look like a full UK postcode &mdash; try something like <b>PO14 1AS</b>.'); return; }
-    say('no', 'Checking&hellip;');
-    fetch('https://api.postcodes.io/postcodes/' + encodeURIComponent(pc))
-      .then(function(r){ return r.json(); })
-      .then(function(d){
-        if(!d || d.status !== 200 || !d.result){
-          say('no', 'We couldn&rsquo;t find that postcode &mdash; double-check it and try again.');
-          return;
-        }
-        var p = { lat: d.result.latitude, lng: d.result.longitude },
-            place = d.result.post_town || d.result.admin_ward || d.result.admin_district || 'your area',
-            dist = milesBetween(BASE, p), rounded = Math.round(dist * 10) / 10;
-        if(map && window.L){
-          if(pin){ map.removeLayer(pin); }
-          pin = L.circleMarker([p.lat, p.lng], {
-            radius: 7, color: '#efe9dd', fillColor: '#efe9dd', fillOpacity: 1, weight: 2
-          }).addTo(map).bindPopup(place);
-          map.fitBounds(L.latLngBounds([BASE.lat, BASE.lng], [p.lat, p.lng]).pad(0.35));
-        }
-        if(dist <= RADIUS_MILES){
-          say('ok', '&#10003; Good news &mdash; <b>' + place + '</b> is just <b>' + rounded +
-              ' miles</b> from us. We cover your area! Use the chat in the corner or ' +
-              '<a href="https://wa.me/447376204980" target="_blank" rel="noopener">WhatsApp us</a> for a free quote.');
-        } else if(dist <= RADIUS_MILES + 6){
-          say('ok', '<b>' + place + '</b> is <b>' + rounded + ' miles</b> away &mdash; slightly outside our usual patch, ' +
-              'but we often travel further for larger jobs. ' +
-              '<a href="https://wa.me/447376204980" target="_blank" rel="noopener">Message us</a> and we&rsquo;ll see what we can do.');
-        } else {
-          say('no', '<b>' + place + '</b> is <b>' + rounded + ' miles</b> away, which is sadly outside the area we cover. ' +
-              'Sorry we can&rsquo;t help this time!');
-        }
-      })
-      .catch(function(){ say('no', 'Something went wrong checking that postcode &mdash; please try again in a moment.'); });
-  }
-
-  btn.addEventListener('click', check);
-  input.addEventListener('keydown', function(e){ if(e.key === 'Enter') check(); });
 })();
 </script>
 
