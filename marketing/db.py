@@ -73,3 +73,56 @@ def list_leads():
             return cur.fetchall()
     finally:
         conn.close()
+
+
+def get_leads_with_followup_counts():
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT l.id, l.name, l.phone, l.email, l.area, l.job, l.status,
+                       l.created_at, COUNT(f.id) AS followup_count
+                FROM leads l
+                LEFT JOIN lead_followups f ON f.lead_id = l.id
+                WHERE l.status = 'contacted'
+                GROUP BY l.id
+                ORDER BY l.created_at
+                """
+            )
+            return cur.fetchall()
+    finally:
+        conn.close()
+
+
+def record_followup(lead_id, step, channel, content):
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO lead_followups (lead_id, step, channel, content)
+                VALUES (%(lead_id)s, %(step)s, %(channel)s, %(content)s)
+                """,
+                {"lead_id": lead_id, "step": step, "channel": channel, "content": content},
+            )
+            cur.execute(
+                "UPDATE leads SET last_contacted_at = now() WHERE id = %(id)s",
+                {"id": lead_id},
+            )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def mark_replied(lead_id):
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE leads SET status = 'replied' WHERE id = %(id)s",
+                {"id": lead_id},
+            )
+        conn.commit()
+    finally:
+        conn.close()
