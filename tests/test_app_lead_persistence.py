@@ -87,6 +87,47 @@ def test_declined_lead_is_emailed_but_not_enrolled_in_followups(monkeypatch):
     fake_post_resend.assert_called()
 
 
+def test_polite_signoff_is_still_enrolled_in_followups(monkeypatch):
+    """A keen customer wrapping up politely is NOT a decline - still follow up.
+
+    "that's all" / "all good" / "im good" all match CLOSING_RE, which governs
+    when a lead is emailed. Only the narrower DECLINE_RE opts someone out of
+    the follow-up sequence.
+    """
+    fake_insert_lead = MagicMock(return_value=99)
+    fake_post_resend = MagicMock()
+    client = _setup_chat(
+        monkeypatch, "signoff-session", fake_insert_lead,
+        fake_post_resend=fake_post_resend,
+    )
+
+    client.post(
+        "/chat",
+        json={"message": "that's all thanks! I'm James, call me on 07123 456789"},
+    )
+
+    fake_insert_lead.assert_called_once()
+    assert fake_insert_lead.call_args.args[0]["Name"] == "James"
+    fake_post_resend.assert_called()
+
+
+def test_decline_and_closing_regexes_classify_phrases_correctly():
+    """DECLINE_RE is a strict subset of CLOSING_RE: declines only, no sign-offs."""
+    declines = ["not interested", "no longer interested", "no thanks", "no thank you"]
+    signoffs = ["that's all", "that's everything", "all good", "im good",
+                "nothing else", "goodbye", "thanks that's great"]
+
+    for phrase in declines:
+        assert app_module._looks_like_decline(phrase), phrase
+        # Every decline is still a closing phrase - email behaviour unchanged.
+        assert app_module._looks_like_closing(phrase), phrase
+
+    for phrase in signoffs:
+        assert not app_module._looks_like_decline(phrase), phrase
+        # ...but still triggers the email safety net exactly as before.
+        assert app_module._looks_like_closing(phrase), phrase
+
+
 def test_duplicate_lead_is_not_inserted_again(monkeypatch):
     """A repeat chat from the same person must not start a second sequence."""
     fake_insert_lead = MagicMock(return_value=99)

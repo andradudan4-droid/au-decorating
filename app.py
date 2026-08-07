@@ -127,6 +127,21 @@ def _looks_like_closing(text):
     return bool(CLOSING_RE.search(text or ""))
 
 
+# The subset of CLOSING_RE that is an unambiguous "no" rather than a polite
+# sign-off. CLOSING_RE deliberately also matches wrap-ups like "that's all" or
+# "all good", which a keen, fully-qualified customer says all the time - those
+# must still be enrolled in the follow-up sequence. Only a genuine decline
+# should opt someone out of being chased.
+DECLINE_RE = re.compile(
+    r"\b(no longer interested|not interested|no thanks|no thank you)\b",
+    re.I,
+)
+
+
+def _looks_like_decline(text):
+    return bool(DECLINE_RE.search(text or ""))
+
+
 def _transcript(conversation):
     lines = []
     for msg in conversation:
@@ -1650,10 +1665,12 @@ def chat_endpoint():
             lead_fields = send_lead_email(conversation_copy, images_copy)
             # Mehmet always gets the email above. The DB insert is what enrols
             # the lead in the automated follow-up sequence, so we skip it when
-            # the visitor explicitly signed off ("not interested", "no thanks")
-            # or when this person is already an active lead from an earlier
-            # session - neither should be chased again.
-            if _looks_like_closing(user_message):
+            # the visitor genuinely declined ("not interested", "no thanks") or
+            # when this person is already an active lead from an earlier
+            # session - neither should be chased again. Note this uses the
+            # narrow DECLINE_RE, not CLOSING_RE: a happy customer signing off
+            # with "that's all, thanks" still gets followed up.
+            if _looks_like_decline(user_message):
                 print("Visitor declined - emailing lead but skipping follow-up enrolment")
             else:
                 try:
