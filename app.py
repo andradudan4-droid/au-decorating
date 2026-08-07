@@ -10,6 +10,7 @@ import requests
 from groq import Groq
 
 from marketing import db as marketing_db
+from marketing import followups
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-key-change-this-later")
@@ -39,6 +40,9 @@ def client_chat(**kwargs):
 # use Resend instead, which sends over normal HTTPS - not blocked.
 RESEND_API_KEY = os.environ.get("RESEND_API_KEY")
 NOTIFY_TO = os.environ.get("NOTIFY_TO", "mehmet@au-decorating.com")
+
+# --- Scheduler secret for /internal/tick endpoint ---
+TICK_SECRET = os.environ.get("TICK_SECRET")
 
 # --- Photo upload settings ---------------------------------------------------
 # Customers can attach photos of the job; these get emailed with the lead.
@@ -1687,6 +1691,14 @@ def upload_endpoint():
         send_photo_followup(list(conversation), [image])
 
     return jsonify({"reply": reply})
+
+
+@app.route("/internal/tick", methods=["POST"])
+def internal_tick():
+    if not TICK_SECRET or request.headers.get("X-Tick-Secret") != TICK_SECRET:
+        return jsonify({"error": "unauthorized"}), 401
+    sent = followups.run_due_followups()
+    return jsonify({"followups_sent": sent})
 
 
 if __name__ == "__main__":
