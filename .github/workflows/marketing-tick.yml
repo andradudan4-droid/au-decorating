@@ -1,0 +1,15 @@
+name: Marketing follow-up tick
+
+on:
+  schedule:
+    - cron: "0 * * * *"  # every hour
+  workflow_dispatch: {}
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call /internal/tick
+        run: |
+          curl -sf -X POST https://au-decorating.com/internal/tick \
+            -H "X-Tick-Secret: ${{ secrets.TICK_SECRET }}"
