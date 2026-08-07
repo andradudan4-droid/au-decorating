@@ -1715,9 +1715,9 @@ def admin_leads():
     leads = marketing_db.list_leads()
     rows = "".join(
         "<tr>"
-        f"<td>{lead['id']}</td><td>{lead.get('name') or ''}</td>"
-        f"<td>{lead.get('phone') or ''}</td><td>{lead.get('email') or ''}</td>"
-        f"<td>{lead['status']}</td>"
+        f"<td>{html.escape(str(lead['id']))}</td><td>{html.escape(str(lead.get('name') or ''))}</td>"
+        f"<td>{html.escape(str(lead.get('phone') or ''))}</td><td>{html.escape(str(lead.get('email') or ''))}</td>"
+        f"<td>{html.escape(str(lead['status']))}</td>"
         "<td>"
         f'<form method="post" action="/admin/leads/{lead["id"]}/mark-replied?key={ADMIN_SECRET}">'
         '<button type="submit">Mark replied</button></form>'
