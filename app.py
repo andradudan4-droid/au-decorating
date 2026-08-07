@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template_string, session, Response
+from flask import Flask, request, jsonify, render_template_string, session, Response, redirect
 import os
 import re
 import uuid
@@ -43,6 +43,13 @@ NOTIFY_TO = os.environ.get("NOTIFY_TO", "mehmet@au-decorating.com")
 
 # --- Scheduler secret for /internal/tick endpoint ---
 TICK_SECRET = os.environ.get("TICK_SECRET")
+
+# --- Admin page secret ---
+ADMIN_SECRET = os.environ.get("ADMIN_SECRET")
+
+
+def _admin_authorized():
+    return bool(ADMIN_SECRET) and request.args.get("key") == ADMIN_SECRET
 
 # --- Photo upload settings ---------------------------------------------------
 # Customers can attach photos of the job; these get emailed with the lead.
@@ -1699,6 +1706,36 @@ def internal_tick():
         return jsonify({"error": "unauthorized"}), 401
     sent = followups.run_due_followups()
     return jsonify({"followups_sent": sent})
+
+
+@app.route("/admin/leads")
+def admin_leads():
+    if not _admin_authorized():
+        return "Unauthorized", 401
+    leads = marketing_db.list_leads()
+    rows = "".join(
+        "<tr>"
+        f"<td>{lead['id']}</td><td>{lead.get('name') or ''}</td>"
+        f"<td>{lead.get('phone') or ''}</td><td>{lead.get('email') or ''}</td>"
+        f"<td>{lead['status']}</td>"
+        "<td>"
+        f'<form method="post" action="/admin/leads/{lead["id"]}/mark-replied?key={ADMIN_SECRET}">'
+        '<button type="submit">Mark replied</button></form>'
+        "</td></tr>"
+        for lead in leads
+    )
+    return (
+        "<table border=1 cellpadding=8><tr><th>ID</th><th>Name</th><th>Phone</th>"
+        f"<th>Email</th><th>Status</th><th></th></tr>{rows}</table>"
+    )
+
+
+@app.route("/admin/leads/<int:lead_id>/mark-replied", methods=["POST"])
+def admin_mark_replied(lead_id):
+    if not _admin_authorized():
+        return "Unauthorized", 401
+    marketing_db.mark_replied(lead_id)
+    return redirect(f"/admin/leads?key={ADMIN_SECRET}")
 
 
 if __name__ == "__main__":
