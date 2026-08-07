@@ -22,10 +22,15 @@ def test_send_lead_email_returns_fields(monkeypatch):
     assert fields["Phone"] == "07123 456789"
 
 
-def test_chat_notification_persists_lead(monkeypatch, tmp_path):
-    monkeypatch.setattr(app_module, "_post_resend", MagicMock())
-    fake_insert_lead = MagicMock(return_value=99)
+def _setup_chat(monkeypatch, session_id, fake_insert_lead, fake_find_active_lead=None,
+                fake_post_resend=None):
+    """Wire up a /chat call with the outside world mocked out."""
+    monkeypatch.setattr(app_module, "_post_resend", fake_post_resend or MagicMock())
     monkeypatch.setattr(app_module.marketing_db, "insert_lead", fake_insert_lead)
+    monkeypatch.setattr(
+        app_module.marketing_db, "find_active_lead",
+        fake_find_active_lead or MagicMock(return_value=None),
+    )
     monkeypatch.setattr(
         app_module, "client_chat",
         lambda **kwargs: MagicMock(
@@ -41,10 +46,16 @@ def test_chat_notification_persists_lead(monkeypatch, tmp_path):
 
     client = app_module.app.test_client()
     with client.session_transaction() as sess:
-        sess["session_id"] = "test-session"
-    app_module.all_conversations["test-session"] = [
+        sess["session_id"] = session_id
+    app_module.all_conversations[session_id] = [
         {"role": "system", "content": app_module.SYSTEM_PROMPT}
     ]
+    return client
+
+
+def test_chat_notification_persists_lead(monkeypatch):
+    fake_insert_lead = MagicMock(return_value=99)
+    client = _setup_chat(monkeypatch, "test-session", fake_insert_lead)
 
     client.post(
         "/chat",
@@ -54,3 +65,45 @@ def test_chat_notification_persists_lead(monkeypatch, tmp_path):
     fake_insert_lead.assert_called_once()
     called_fields = fake_insert_lead.call_args.args[0]
     assert called_fields["Name"] == "James"
+
+
+def test_declined_lead_is_emailed_but_not_enrolled_in_followups(monkeypatch):
+    """A visitor who says "not interested" must not be chased by the sequence."""
+    fake_insert_lead = MagicMock(return_value=99)
+    fake_post_resend = MagicMock()
+    client = _setup_chat(
+        monkeypatch, "declined-session", fake_insert_lead,
+        fake_post_resend=fake_post_resend,
+    )
+
+    client.post(
+        "/chat",
+        json={"message": "no thanks, not interested. I'm on 07123 456789 anyway"},
+    )
+
+    # No follow-up enrolment...
+    fake_insert_lead.assert_not_called()
+    # ...but Mehmet is still emailed exactly as before.
+    fake_post_resend.assert_called()
+
+
+def test_duplicate_lead_is_not_inserted_again(monkeypatch):
+    """A repeat chat from the same person must not start a second sequence."""
+    fake_insert_lead = MagicMock(return_value=99)
+    fake_find_active_lead = MagicMock(return_value={"id": 42, "name": "James"})
+    fake_post_resend = MagicMock()
+    client = _setup_chat(
+        monkeypatch, "dup-session", fake_insert_lead,
+        fake_find_active_lead=fake_find_active_lead,
+        fake_post_resend=fake_post_resend,
+    )
+
+    client.post(
+        "/chat",
+        json={"message": "It's James, kitchen needs painting, call 07123 456789"},
+    )
+
+    fake_find_active_lead.assert_called_once_with("07123 456789", None)
+    fake_insert_lead.assert_not_called()
+    # The email to Mehmet is unaffected.
+    fake_post_resend.assert_called()

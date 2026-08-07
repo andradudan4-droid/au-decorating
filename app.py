@@ -1648,10 +1648,26 @@ def chat_endpoint():
             conversation_copy = list(conversation)
             images_copy = list(session_images.get(session_id, []))
             lead_fields = send_lead_email(conversation_copy, images_copy)
-            try:
-                marketing_db.insert_lead(lead_fields)
-            except Exception as e:
-                print(f"Failed to persist lead: {e}")
+            # Mehmet always gets the email above. The DB insert is what enrols
+            # the lead in the automated follow-up sequence, so we skip it when
+            # the visitor explicitly signed off ("not interested", "no thanks")
+            # or when this person is already an active lead from an earlier
+            # session - neither should be chased again.
+            if _looks_like_closing(user_message):
+                print("Visitor declined - emailing lead but skipping follow-up enrolment")
+            else:
+                try:
+                    existing = marketing_db.find_active_lead(
+                        lead_fields.get("Phone"), lead_fields.get("Email")
+                    )
+                    if existing:
+                        print(
+                            f"Duplicate lead skipped - already active as id {existing['id']}"
+                        )
+                    else:
+                        marketing_db.insert_lead(lead_fields)
+                except Exception as e:
+                    print(f"Failed to persist lead: {e}")
 
     return jsonify({"reply": ai_reply})
 
