@@ -41,6 +41,17 @@ class FakeConnection:
         self.closed = True
 
 
+def test_get_connection_sets_connect_timeout(monkeypatch):
+    """A slow or unreachable DB must not hang startup or a live request."""
+    fake_connect = MagicMock(return_value="conn")
+    monkeypatch.setattr(db.psycopg2, "connect", fake_connect)
+    monkeypatch.setenv("DATABASE_URL", "postgres://example/db")
+
+    assert db.get_connection() == "conn"
+
+    assert fake_connect.call_args.kwargs["connect_timeout"] == 5
+
+
 def test_init_schema_creates_tables(monkeypatch):
     cursor = FakeCursor()
     conn = FakeConnection(cursor)
@@ -98,6 +109,68 @@ def test_get_leads_with_followup_counts_queries_active_leads(monkeypatch):
     assert "lead_followups" in sql
     assert "status = 'contacted'" in sql
     assert conn.closed
+
+
+def test_get_leads_with_followup_counts_selects_last_contacted_at(monkeypatch):
+    """leads_due needs last_contacted_at to enforce the minimum gap between sends."""
+    cursor = FakeCursor(fetchall_result=[])
+    conn = FakeConnection(cursor)
+    monkeypatch.setattr(db, "get_connection", lambda: conn)
+
+    db.get_leads_with_followup_counts()
+
+    sql, _ = cursor.executed[0]
+    assert "l.last_contacted_at" in sql
+
+
+def test_find_active_lead_matches_by_phone(monkeypatch):
+    existing = {"id": 5, "name": "James", "phone": "07123 456789", "email": None}
+    cursor = FakeCursor(fetchone_result=existing)
+    conn = FakeConnection(cursor)
+    monkeypatch.setattr(db, "get_connection", lambda: conn)
+
+    result = db.find_active_lead("07123 456789", None)
+
+    assert result == existing
+    sql, params = cursor.executed[0]
+    assert "FROM leads" in sql
+    assert "status = 'contacted'" in sql
+    assert "LIMIT 1" in sql
+    assert params == {"phone": "07123 456789", "email": None}
+    assert conn.closed
+
+
+def test_find_active_lead_matches_by_email(monkeypatch):
+    existing = {"id": 6, "name": "Priya", "phone": None, "email": "priya@example.com"}
+    cursor = FakeCursor(fetchone_result=existing)
+    conn = FakeConnection(cursor)
+    monkeypatch.setattr(db, "get_connection", lambda: conn)
+
+    result = db.find_active_lead(None, "priya@example.com")
+
+    assert result == existing
+    _, params = cursor.executed[0]
+    assert params == {"phone": None, "email": "priya@example.com"}
+    assert conn.closed
+
+
+def test_find_active_lead_returns_none_when_no_match(monkeypatch):
+    cursor = FakeCursor(fetchone_result=None)
+    conn = FakeConnection(cursor)
+    monkeypatch.setattr(db, "get_connection", lambda: conn)
+
+    assert db.find_active_lead("07999 999999", "nobody@example.com") is None
+    assert conn.closed
+
+
+def test_find_active_lead_skips_query_when_no_contact_details(monkeypatch):
+    """All-NULL contact details would otherwise match arbitrary NULL-phone rows."""
+    cursor = FakeCursor(fetchone_result={"id": 1})
+    conn = FakeConnection(cursor)
+    monkeypatch.setattr(db, "get_connection", lambda: conn)
+
+    assert db.find_active_lead(None, None) is None
+    assert cursor.executed == []
 
 
 def test_record_followup_inserts_and_updates_last_contacted(monkeypatch):

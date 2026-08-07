@@ -5,7 +5,11 @@ from psycopg2.extras import RealDictCursor
 
 
 def get_connection():
-    return psycopg2.connect(os.environ["DATABASE_URL"], cursor_factory=RealDictCursor)
+    # connect_timeout bounds the wait on a slow or unreachable database, so a
+    # DB outage can't hang site startup or a live request indefinitely.
+    return psycopg2.connect(
+        os.environ["DATABASE_URL"], cursor_factory=RealDictCursor, connect_timeout=5
+    )
 
 
 def init_schema():
@@ -65,6 +69,34 @@ def insert_lead(fields):
         conn.close()
 
 
+def find_active_lead(phone, email):
+    """Return an existing active lead matching this phone or email, else None.
+
+    Used to stop a repeat chat session from creating a second lead row for the
+    same person, which would enrol them in a duplicate follow-up sequence.
+    NULL-safe: a None phone never matches a stored NULL phone.
+    """
+    if not phone and not email:
+        return None
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT * FROM leads
+                WHERE status = 'contacted'
+                  AND ((%(phone)s IS NOT NULL AND phone = %(phone)s)
+                       OR (%(email)s IS NOT NULL AND email = %(email)s))
+                ORDER BY created_at DESC
+                LIMIT 1
+                """,
+                {"phone": phone, "email": email},
+            )
+            return cur.fetchone()
+    finally:
+        conn.close()
+
+
 def list_leads():
     conn = get_connection()
     try:
@@ -82,7 +114,8 @@ def get_leads_with_followup_counts():
             cur.execute(
                 """
                 SELECT l.id, l.name, l.phone, l.email, l.area, l.job, l.status,
-                       l.created_at, COUNT(f.id) AS followup_count
+                       l.created_at, l.last_contacted_at,
+                       COUNT(f.id) AS followup_count
                 FROM leads l
                 LEFT JOIN lead_followups f ON f.lead_id = l.id
                 WHERE l.status = 'contacted'
