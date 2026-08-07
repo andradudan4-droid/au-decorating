@@ -9,6 +9,8 @@ import time
 import requests
 from groq import Groq
 
+from marketing import db as marketing_db
+
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-key-change-this-later")
 app.config["SESSION_COOKIE_SAMESITE"] = "None"
@@ -16,6 +18,11 @@ app.config["SESSION_COOKIE_SECURE"] = True
 # Photos are resized in the browser before upload, so payloads are small.
 # This is a safety cap to reject anything abnormally large.
 app.config["MAX_CONTENT_LENGTH"] = 12 * 1024 * 1024  # 12 MB
+
+try:
+    marketing_db.init_schema()
+except Exception as e:
+    print(f"marketing DB schema init skipped: {e}")
 
 _groq_client = None
 
@@ -331,7 +338,8 @@ def _lead_email_html(fields, conversation, image_count):
 
 
 def send_lead_email(conversation, images=None):
-    """Emails a tidy, professional lead summary (plus transcript and any photos)."""
+    """Emails a tidy, professional lead summary (plus transcript and any photos).
+    Returns the extracted lead fields so the caller can persist them."""
     images = images or []
     fields = _lead_fields(conversation)
     transcript = _transcript(conversation)
@@ -363,6 +371,7 @@ def send_lead_email(conversation, images=None):
         html_body=html_body,
         attachments=images,
     )
+    return fields
 
 
 def send_photo_followup(conversation, images):
@@ -1627,7 +1636,11 @@ def chat_endpoint():
             notified_sessions.add(session_id)
             conversation_copy = list(conversation)
             images_copy = list(session_images.get(session_id, []))
-            send_lead_email(conversation_copy, images_copy)
+            lead_fields = send_lead_email(conversation_copy, images_copy)
+            try:
+                marketing_db.insert_lead(lead_fields)
+            except Exception as e:
+                print(f"Failed to persist lead: {e}")
 
     return jsonify({"reply": ai_reply})
 
