@@ -1,0 +1,15 @@
+name: Weekly local SEO rank check
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"  # every Monday at 6am UTC
+  workflow_dispatch: {}
+
+jobs:
+  rank-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call /internal/rank-check
+        run: |
+          curl -sf -X POST https://au-decorating.com/internal/rank-check \
+            -H "X-Tick-Secret: ${{ secrets.TICK_SECRET }}"
