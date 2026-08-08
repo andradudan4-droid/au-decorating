@@ -36,11 +36,14 @@ def check_ranking(keyword):
             "hl": "en",
             "api_key": SERPAPI_API_KEY,
         },
-        # /internal/rank-check runs all 8 keywords sequentially in one request,
-        # so this timeout multiplies by 8 in the worst case. 8s keeps the batch
-        # ceiling at ~64s while leaving ample headroom over SerpApi's typical
-        # 1-3s response - the single Render worker also serves the live chat.
-        timeout=8,
+        # SerpApi's local-pack (map) searches routinely take well over 8s in
+        # practice (confirmed in production: every keyword timed out at 8s).
+        # /internal/rank-check now runs the batch off the request thread
+        # (see app.py's internal_rank_check), so a generous per-call timeout
+        # no longer risks blocking the live chat or tripping gunicorn's
+        # request timeout - it only bounds how long one hung connection can
+        # delay the rest of the background batch.
+        timeout=25,
     )
     response.raise_for_status()
     data = response.json()

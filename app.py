@@ -1743,18 +1743,11 @@ def internal_tick():
     return jsonify({"followups_sent": sent})
 
 
-@app.route("/internal/rank-check", methods=["POST"])
-def internal_rank_check():
-    if not TICK_SECRET or request.headers.get("X-Tick-Secret") != TICK_SECRET:
-        return jsonify({"error": "unauthorized"}), 401
-    # Without a key, check_ranking() degrades to returning None for every
-    # keyword without making a single HTTP call. Running the loop anyway would
-    # write 8 rows of position=NULL, which /admin/rankings renders as "Not in
-    # top 3" - indistinguishable from a real (bad) ranking result - and would
-    # return 200 so the weekly Action stays green over a broken setup.
-    if not rank_tracking.SERPAPI_API_KEY:
-        return jsonify({"error": "SERPAPI_API_KEY not configured"}), 500
-
+def _run_rank_check_batch():
+    """Checks every keyword and records the result. Runs off the request
+    thread (see internal_rank_check) so 8 sequential SerpApi calls - each
+    of which can legitimately take 10-20s for a local-pack query - can't
+    trip gunicorn's request timeout and block the live customer chat."""
     checked = 0
     failed = 0
     for keyword in rank_tracking.KEYWORDS:
@@ -1764,14 +1757,27 @@ def internal_rank_check():
             checked += 1
         except Exception as e:
             # Per-keyword isolation: one SerpApi outage or rate-limit must not
-            # stop the rest of the batch. But the failure still has to surface
-            # in the status code so `curl -sf` in the Action turns red.
+            # stop the rest of the batch.
             failed += 1
             print(f"Rank check failed for '{keyword}': {e}")
-    return (
-        jsonify({"keywords_checked": checked, "keywords_failed": failed}),
-        200 if failed == 0 else 500,
-    )
+    print(f"Rank check batch complete: {checked} checked, {failed} failed")
+
+
+@app.route("/internal/rank-check", methods=["POST"])
+def internal_rank_check():
+    if not TICK_SECRET or request.headers.get("X-Tick-Secret") != TICK_SECRET:
+        return jsonify({"error": "unauthorized"}), 401
+    # Without a key, check_ranking() degrades to returning None for every
+    # keyword without making a single HTTP call. Starting the batch anyway
+    # would write 8 rows of position=NULL, which /admin/rankings renders as
+    # "Not in top 3" - indistinguishable from a real (bad) ranking result.
+    # This check stays synchronous so total misconfiguration still fails
+    # the request immediately, before any background work starts.
+    if not rank_tracking.SERPAPI_API_KEY:
+        return jsonify({"error": "SERPAPI_API_KEY not configured"}), 500
+
+    threading.Thread(target=_run_rank_check_batch, daemon=True).start()
+    return jsonify({"status": "started"}), 202
 
 
 @app.route("/admin/leads")

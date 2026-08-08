@@ -200,16 +200,32 @@ def test_record_ranking_and_get_latest_rankings_round_trip(monkeypatch):
     assert inserts[-1][1] == {"keyword": "painter portsmouth", "position": 1}
 
 
-def test_rank_check_endpoint_result_reaches_admin_rankings_page(monkeypatch):
-    """/internal/rank-check -> record_ranking -> get_latest_rankings -> /admin/rankings.
+class _SynchronousThread:
+    """Stands in for threading.Thread so the background batch runs inline,
+    in test order, instead of on a real (non-deterministic) thread."""
 
-    Only the true outer boundaries are mocked: SerpApi's HTTP call and the DB
-    connection. Everything between - the route, check_ranking()'s JSON parsing,
-    both SQL statements and the /admin/rankings rendering - is the real code.
+    def __init__(self, target, daemon=True):
+        self._target = target
+
+    def start(self):
+        self._target()
+
+
+def test_rank_check_endpoint_result_reaches_admin_rankings_page(monkeypatch):
+    """/internal/rank-check -> (background batch) -> record_ranking ->
+    get_latest_rankings -> /admin/rankings.
+
+    Only the true outer boundaries are mocked: SerpApi's HTTP call, the DB
+    connection, and threading.Thread itself (swapped for a synchronous
+    stand-in so the background batch completes before the assertions run,
+    without changing anything about what code actually executes). Everything
+    between - the route, check_ranking()'s JSON parsing, both SQL statements
+    and the /admin/rankings rendering - is the real code.
     """
     cursor, _ = _connected(monkeypatch)
     monkeypatch.setattr(app_module, "TICK_SECRET", "correct-secret")
     monkeypatch.setattr(app_module, "ADMIN_SECRET", "admin-secret")
+    monkeypatch.setattr(app_module.threading, "Thread", _SynchronousThread)
     monkeypatch.setattr(rank_tracking, "SERPAPI_API_KEY", "fake-key")
     monkeypatch.setattr(
         rank_tracking, "KEYWORDS", ["painter portsmouth", "painter waterlooville"]
@@ -236,8 +252,8 @@ def test_rank_check_endpoint_result_reaches_admin_rankings_page(monkeypatch):
         "/internal/rank-check", headers={"X-Tick-Secret": "correct-secret"}
     )
 
-    assert check.status_code == 200
-    assert check.get_json() == {"keywords_checked": 2, "keywords_failed": 0}
+    assert check.status_code == 202
+    assert check.get_json() == {"status": "started"}
     assert len(cursor.rows) == 2
 
     page = client.get("/admin/rankings?key=admin-secret")
