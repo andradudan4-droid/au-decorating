@@ -1840,6 +1840,26 @@ def admin_content_generate():
     return redirect(f"/admin/content?key={ADMIN_SECRET}")
 
 
+@app.route("/admin/rankings")
+def admin_rankings():
+    if not _admin_authorized():
+        return "Unauthorized", 401
+    rankings = marketing_db.get_latest_rankings()
+    rows = "".join(
+        "<tr>"
+        f"<td>{html.escape(r['keyword'])}</td>"
+        f"<td>{r['position'] if r['position'] is not None else 'Not in top 3'}</td>"
+        f"<td>{html.escape(str(r['checked_at']))}</td>"
+        "</tr>"
+        for r in rankings
+    )
+    return (
+        "<table border=1 cellpadding=8>"
+        "<tr><th>Keyword</th><th>Position</th><th>Last checked</th></tr>"
+        f"{rows}</table>"
+    )
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5001))
     app.run(host="0.0.0.0", port=port)
