@@ -11,6 +11,7 @@ from groq import Groq
 
 from marketing import db as marketing_db
 from marketing import followups
+from marketing import content_engine
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-key-change-this-later")
@@ -1769,6 +1770,74 @@ def admin_mark_replied(lead_id):
         return "Unauthorized", 401
     marketing_db.mark_replied(lead_id)
     return redirect(f"/admin/leads?key={ADMIN_SECRET}")
+
+
+@app.route("/admin/content")
+def admin_content():
+    if not _admin_authorized():
+        return "Unauthorized", 401
+    items = marketing_db.list_content_items()
+    rows = "".join(
+        "<tr>"
+        f"<td>{html.escape(item['content_type'])}</td>"
+        f"<td>{html.escape(item['input_context'])}</td>"
+        f"<td>{html.escape(item['generated_text'])}</td>"
+        "</tr>"
+        for item in items
+    )
+    return f"""
+    <h2>Generate a GBP post</h2>
+    <form method="post" action="/admin/content/generate?key={ADMIN_SECRET}">
+        <input type="hidden" name="content_type" value="gbp_post">
+        <label>What happened?<br>
+            <textarea name="description" rows="3" cols="60"></textarea>
+        </label><br>
+        <button type="submit">Generate</button>
+    </form>
+    <h2>Draft a review reply</h2>
+    <form method="post" action="/admin/content/generate?key={ADMIN_SECRET}">
+        <input type="hidden" name="content_type" value="review_reply">
+        <label>Reviewer name<br><input type="text" name="reviewer_name"></label><br>
+        <label>Star rating (1-5)<br><input type="number" name="rating" min="1" max="5"></label><br>
+        <label>Review text<br>
+            <textarea name="review_text" rows="3" cols="60"></textarea>
+        </label><br>
+        <button type="submit">Generate</button>
+    </form>
+    <h2>Recent drafts</h2>
+    <table border=1 cellpadding=8>
+        <tr><th>Type</th><th>Input</th><th>Generated</th></tr>
+        {rows}
+    </table>
+    """
+
+
+@app.route("/admin/content/generate", methods=["POST"])
+def admin_content_generate():
+    if not _admin_authorized():
+        return "Unauthorized", 401
+
+    content_type = request.form.get("content_type")
+    if content_type == "gbp_post":
+        description = request.form.get("description", "")
+        context = {"description": description}
+        input_context = description
+    elif content_type == "review_reply":
+        reviewer_name = request.form.get("reviewer_name", "")
+        rating = request.form.get("rating", "")
+        review_text = request.form.get("review_text", "")
+        context = {
+            "reviewer_name": reviewer_name,
+            "rating": rating,
+            "review_text": review_text,
+        }
+        input_context = f"{reviewer_name} ({rating}/5): {review_text}"
+    else:
+        return "Unknown content type", 400
+
+    generated_text = content_engine.generate(content_type, context)
+    marketing_db.insert_content_item(content_type, input_context, generated_text)
+    return redirect(f"/admin/content?key={ADMIN_SECRET}")
 
 
 if __name__ == "__main__":
