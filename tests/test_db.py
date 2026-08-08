@@ -206,3 +206,47 @@ def test_mark_replied_updates_status(monkeypatch):
     assert params == {"id": 7}
     assert conn.committed
     assert conn.closed
+
+
+def test_init_schema_creates_content_items_table(monkeypatch):
+    cursor = FakeCursor()
+    conn = FakeConnection(cursor)
+    monkeypatch.setattr(db, "get_connection", lambda: conn)
+
+    db.init_schema()
+
+    executed_sql = " ".join(sql for sql, _ in cursor.executed)
+    assert "CREATE TABLE IF NOT EXISTS content_items" in executed_sql
+
+
+def test_insert_content_item_returns_new_id(monkeypatch):
+    cursor = FakeCursor(fetchone_result={"id": 5})
+    conn = FakeConnection(cursor)
+    monkeypatch.setattr(db, "get_connection", lambda: conn)
+
+    item_id = db.insert_content_item(
+        "gbp_post", "repainted a terrace in Southsea", "Just finished..."
+    )
+
+    assert item_id == 5
+    sql, params = cursor.executed[0]
+    assert "INSERT INTO content_items" in sql
+    assert params["content_type"] == "gbp_post"
+    assert params["generated_text"] == "Just finished..."
+    assert conn.committed
+    assert conn.closed
+
+
+def test_list_content_items_returns_rows(monkeypatch):
+    rows = [{"id": 1, "content_type": "gbp_post"}]
+    cursor = FakeCursor(fetchall_result=rows)
+    conn = FakeConnection(cursor)
+    monkeypatch.setattr(db, "get_connection", lambda: conn)
+
+    result = db.list_content_items()
+
+    assert result == rows
+    sql, params = cursor.executed[0]
+    assert "SELECT * FROM content_items" in sql
+    assert params["limit"] == 20
+    assert conn.closed

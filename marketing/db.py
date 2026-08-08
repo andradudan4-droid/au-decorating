@@ -43,6 +43,17 @@ def init_schema():
                 )
                 """
             )
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS content_items (
+                    id SERIAL PRIMARY KEY,
+                    content_type TEXT NOT NULL,
+                    input_context TEXT NOT NULL,
+                    generated_text TEXT NOT NULL,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+                )
+                """
+            )
         conn.commit()
     finally:
         conn.close()
@@ -157,5 +168,41 @@ def mark_replied(lead_id):
                 {"id": lead_id},
             )
         conn.commit()
+    finally:
+        conn.close()
+
+
+def insert_content_item(content_type, input_context, generated_text):
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO content_items (content_type, input_context, generated_text)
+                VALUES (%(content_type)s, %(input_context)s, %(generated_text)s)
+                RETURNING id
+                """,
+                {
+                    "content_type": content_type,
+                    "input_context": input_context,
+                    "generated_text": generated_text,
+                },
+            )
+            item_id = cur.fetchone()["id"]
+        conn.commit()
+        return item_id
+    finally:
+        conn.close()
+
+
+def list_content_items(limit=20):
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT * FROM content_items ORDER BY created_at DESC LIMIT %(limit)s",
+                {"limit": limit},
+            )
+            return cur.fetchall()
     finally:
         conn.close()
