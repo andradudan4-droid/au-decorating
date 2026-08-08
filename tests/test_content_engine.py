@@ -47,3 +47,39 @@ def test_generate_unknown_content_type_raises(monkeypatch):
         assert False, "expected ValueError"
     except ValueError:
         pass
+
+
+def test_generate_gbp_post_includes_description_in_prompt(monkeypatch):
+    fake_client = _fake_client("Just finished a full exterior repaint!")
+    monkeypatch.setattr(content_engine, "_get_client", lambda: fake_client)
+
+    result = content_engine.generate(
+        "gbp_post",
+        {"description": "Full exterior repaint of a Victorian terrace in Southsea"},
+    )
+
+    assert result == "Just finished a full exterior repaint!"
+    call_kwargs = fake_client.messages.create.call_args.kwargs
+    user_message = call_kwargs["messages"][0]["content"]
+    assert "Victorian terrace in Southsea" in user_message
+
+
+def test_generate_review_reply_includes_review_details_in_prompt(monkeypatch):
+    fake_client = _fake_client("Thanks so much, James!")
+    monkeypatch.setattr(content_engine, "_get_client", lambda: fake_client)
+
+    result = content_engine.generate(
+        "review_reply",
+        {
+            "reviewer_name": "James",
+            "rating": 5,
+            "review_text": "Great job on the kitchen, tidy and on time.",
+        },
+    )
+
+    assert result == "Thanks so much, James!"
+    call_kwargs = fake_client.messages.create.call_args.kwargs
+    user_message = call_kwargs["messages"][0]["content"]
+    assert "James" in user_message
+    assert "5/5" in user_message
+    assert "Great job on the kitchen, tidy and on time." in user_message
