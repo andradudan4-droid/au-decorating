@@ -1747,15 +1747,31 @@ def internal_tick():
 def internal_rank_check():
     if not TICK_SECRET or request.headers.get("X-Tick-Secret") != TICK_SECRET:
         return jsonify({"error": "unauthorized"}), 401
+    # Without a key, check_ranking() degrades to returning None for every
+    # keyword without making a single HTTP call. Running the loop anyway would
+    # write 8 rows of position=NULL, which /admin/rankings renders as "Not in
+    # top 3" - indistinguishable from a real (bad) ranking result - and would
+    # return 200 so the weekly Action stays green over a broken setup.
+    if not rank_tracking.SERPAPI_API_KEY:
+        return jsonify({"error": "SERPAPI_API_KEY not configured"}), 500
+
     checked = 0
+    failed = 0
     for keyword in rank_tracking.KEYWORDS:
         try:
             position = rank_tracking.check_ranking(keyword)
             marketing_db.record_ranking(keyword, position)
             checked += 1
         except Exception as e:
+            # Per-keyword isolation: one SerpApi outage or rate-limit must not
+            # stop the rest of the batch. But the failure still has to surface
+            # in the status code so `curl -sf` in the Action turns red.
+            failed += 1
             print(f"Rank check failed for '{keyword}': {e}")
-    return jsonify({"keywords_checked": checked})
+    return (
+        jsonify({"keywords_checked": checked, "keywords_failed": failed}),
+        200 if failed == 0 else 500,
+    )
 
 
 @app.route("/admin/leads")

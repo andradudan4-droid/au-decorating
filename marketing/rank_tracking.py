@@ -36,7 +36,11 @@ def check_ranking(keyword):
             "hl": "en",
             "api_key": SERPAPI_API_KEY,
         },
-        timeout=15,
+        # /internal/rank-check runs all 8 keywords sequentially in one request,
+        # so this timeout multiplies by 8 in the worst case. 8s keeps the batch
+        # ceiling at ~64s while leaving ample headroom over SerpApi's typical
+        # 1-3s response - the single Render worker also serves the live chat.
+        timeout=8,
     )
     response.raise_for_status()
     data = response.json()
