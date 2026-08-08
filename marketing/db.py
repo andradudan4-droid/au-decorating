@@ -54,6 +54,16 @@ def init_schema():
                 )
                 """
             )
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS keyword_rankings (
+                    id SERIAL PRIMARY KEY,
+                    keyword TEXT NOT NULL,
+                    position INTEGER,
+                    checked_at TIMESTAMPTZ NOT NULL DEFAULT now()
+                )
+                """
+            )
         conn.commit()
     finally:
         conn.close()
@@ -202,6 +212,38 @@ def list_content_items(limit=20):
             cur.execute(
                 "SELECT * FROM content_items ORDER BY created_at DESC LIMIT %(limit)s",
                 {"limit": limit},
+            )
+            return cur.fetchall()
+    finally:
+        conn.close()
+
+
+def record_ranking(keyword, position):
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO keyword_rankings (keyword, position)
+                VALUES (%(keyword)s, %(position)s)
+                """,
+                {"keyword": keyword, "position": position},
+            )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def get_latest_rankings():
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT DISTINCT ON (keyword) keyword, position, checked_at
+                FROM keyword_rankings
+                ORDER BY keyword, checked_at DESC
+                """
             )
             return cur.fetchall()
     finally:

@@ -250,3 +250,54 @@ def test_list_content_items_returns_rows(monkeypatch):
     assert "SELECT * FROM content_items" in sql
     assert params["limit"] == 20
     assert conn.closed
+
+
+def test_init_schema_creates_keyword_rankings_table(monkeypatch):
+    cursor = FakeCursor()
+    conn = FakeConnection(cursor)
+    monkeypatch.setattr(db, "get_connection", lambda: conn)
+
+    db.init_schema()
+
+    executed_sql = " ".join(sql for sql, _ in cursor.executed)
+    assert "CREATE TABLE IF NOT EXISTS keyword_rankings" in executed_sql
+
+
+def test_record_ranking_inserts_row(monkeypatch):
+    cursor = FakeCursor()
+    conn = FakeConnection(cursor)
+    monkeypatch.setattr(db, "get_connection", lambda: conn)
+
+    db.record_ranking("painter portsmouth", 2)
+
+    sql, params = cursor.executed[0]
+    assert "INSERT INTO keyword_rankings" in sql
+    assert params == {"keyword": "painter portsmouth", "position": 2}
+    assert conn.committed
+    assert conn.closed
+
+
+def test_record_ranking_allows_null_position(monkeypatch):
+    cursor = FakeCursor()
+    conn = FakeConnection(cursor)
+    monkeypatch.setattr(db, "get_connection", lambda: conn)
+
+    db.record_ranking("painter waterlooville", None)
+
+    _, params = cursor.executed[0]
+    assert params["position"] is None
+
+
+def test_get_latest_rankings_queries_distinct_on_keyword(monkeypatch):
+    rows = [{"keyword": "painter portsmouth", "position": 2, "checked_at": "2026-08-10"}]
+    cursor = FakeCursor(fetchall_result=rows)
+    conn = FakeConnection(cursor)
+    monkeypatch.setattr(db, "get_connection", lambda: conn)
+
+    result = db.get_latest_rankings()
+
+    assert result == rows
+    sql, _ = cursor.executed[0]
+    assert "DISTINCT ON" in sql
+    assert "keyword_rankings" in sql
+    assert conn.closed
