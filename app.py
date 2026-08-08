@@ -12,6 +12,7 @@ from groq import Groq
 from marketing import db as marketing_db
 from marketing import followups
 from marketing import content_engine
+from marketing import rank_tracking
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-key-change-this-later")
@@ -1740,6 +1741,21 @@ def internal_tick():
         return jsonify({"error": "unauthorized"}), 401
     sent = followups.run_due_followups()
     return jsonify({"followups_sent": sent})
+
+
+@app.route("/internal/rank-check", methods=["POST"])
+def internal_rank_check():
+    if not TICK_SECRET or request.headers.get("X-Tick-Secret") != TICK_SECRET:
+        return jsonify({"error": "unauthorized"}), 401
+    checked = 0
+    for keyword in rank_tracking.KEYWORDS:
+        try:
+            position = rank_tracking.check_ranking(keyword)
+            marketing_db.record_ranking(keyword, position)
+            checked += 1
+        except Exception as e:
+            print(f"Rank check failed for '{keyword}': {e}")
+    return jsonify({"keywords_checked": checked})
 
 
 @app.route("/admin/leads")
