@@ -970,6 +970,34 @@ def test_rank_check_checks_every_keyword_and_records_results(monkeypatch):
     assert response.get_json() == {"keywords_checked": 2}
     fake_record.assert_any_call("painter portsmouth", 2)
     fake_record.assert_any_call("decorator portsmouth", None)
+
+
+def test_rank_check_continues_after_a_failing_keyword(monkeypatch):
+    # marketing/rank_tracking.py's check_ranking() calls response.raise_for_status()
+    # with no try/except of its own — a SerpApi outage or rate-limit response on
+    # one keyword must not stop the rest of the batch from being checked. This
+    # mirrors the C2 fix from the lead follow-up plan (one failure must not
+    # permanently stall everything behind it).
+    monkeypatch.setattr(app_module, "TICK_SECRET", "correct-secret")
+    monkeypatch.setattr(
+        app_module.rank_tracking, "KEYWORDS",
+        ["painter portsmouth", "decorator portsmouth", "painter waterlooville"],
+    )
+    fake_check = MagicMock(side_effect=[2, Exception("SerpApi rate limited"), 5])
+    fake_record = MagicMock()
+    monkeypatch.setattr(app_module.rank_tracking, "check_ranking", fake_check)
+    monkeypatch.setattr(app_module.marketing_db, "record_ranking", fake_record)
+    client = app_module.app.test_client()
+
+    response = client.post(
+        "/internal/rank-check", headers={"X-Tick-Secret": "correct-secret"}
+    )
+
+    assert response.status_code == 200
+    assert response.get_json() == {"keywords_checked": 2}
+    fake_record.assert_any_call("painter portsmouth", 2)
+    fake_record.assert_any_call("painter waterlooville", 5)
+    assert fake_record.call_count == 2
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
@@ -994,16 +1022,21 @@ def internal_rank_check():
         return jsonify({"error": "unauthorized"}), 401
     checked = 0
     for keyword in rank_tracking.KEYWORDS:
-        position = rank_tracking.check_ranking(keyword)
-        marketing_db.record_ranking(keyword, position)
-        checked += 1
+        try:
+            position = rank_tracking.check_ranking(keyword)
+            marketing_db.record_ranking(keyword, position)
+            checked += 1
+        except Exception as e:
+            print(f"Rank check failed for '{keyword}': {e}")
     return jsonify({"keywords_checked": checked})
 ```
+
+**Why the try/except:** `rank_tracking.check_ranking()` calls `response.raise_for_status()` with no error handling of its own (by design — see Task 5). Without this, one SerpApi outage or rate-limit response on a single keyword would raise out of the loop and stop every keyword after it from being checked that run. This is the same failure class as the lead follow-up system's `run_due_followups()` — one bad item must not silently block everything behind it.
 
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run: `pytest tests/test_app_internal_rank_check.py -v`
-Expected: PASS (2 tests)
+Expected: PASS (3 tests)
 
 - [ ] **Step 5: Run the full test suite one more time**
 
