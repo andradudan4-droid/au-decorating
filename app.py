@@ -748,6 +748,23 @@ BASE_STYLE = """
     .work-grid{grid-template-columns:1fr 1fr;gap:11px}
     .wa-float{left:14px;bottom:18px;width:54px;height:54px}
   }
+
+  /* cookie consent */
+  .cc-bar{position:fixed;left:16px;right:16px;bottom:16px;z-index:999999;max-width:640px;margin:0 auto;
+    background:rgba(10,10,10,.92);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.12);
+    border-radius:10px;padding:16px 18px;display:none;align-items:center;gap:16px;flex-wrap:wrap;
+    box-shadow:0 20px 50px rgba(0,0,0,.4);transform:translateY(12px);opacity:0;transition:transform .35s ease,opacity .35s ease}
+  .cc-bar.cc-show{display:flex}
+  .cc-bar.cc-in{transform:translateY(0);opacity:1}
+  .cc-bar p{margin:0;color:#eee;font-size:13.5px;line-height:1.5;flex:1 1 260px}
+  .cc-bar a{color:#c9a24b;text-decoration:underline}
+  .cc-actions{display:flex;gap:10px;flex:0 0 auto}
+  .cc-btn{font-family:inherit;font-size:13px;font-weight:700;padding:9px 16px;border-radius:6px;cursor:pointer;white-space:nowrap}
+  .cc-accept{background:#c9a24b;color:#0a0a0a;border:1px solid #c9a24b}
+  .cc-reject{background:transparent;color:#eee;border:1px solid rgba(255,255,255,.3)}
+  .cc-btn:focus-visible{outline:2px solid #c9a24b;outline-offset:2px}
+  @media(max-width:640px){.cc-bar{left:10px;right:10px;bottom:10px;padding:14px}.cc-actions{width:100%;justify-content:flex-end}}
+  @media(prefers-reduced-motion:reduce){.cc-bar{transition:none}}
 </style>
 """
 
@@ -771,7 +788,7 @@ FOOTER = """
   <div style="color:var(--ink);letter-spacing:.04em;margin-bottom:6px;">AU Decorating Ltd &middot; Portsmouth</div>
   <div>Free estimates every day &middot; flexible scheduling &middot; 24-hour call-out</div>
   <div class="areas">Covering everywhere within 10 miles of Southsea &mdash; Portsmouth, Fareham, Gosport, Havant, Waterlooville, Emsworth, Hayling Island, Portchester &amp; more.</div>
-  <div style="margin-top:14px;"><a href="tel:+447376204980">07376 204980</a> &nbsp;&middot;&nbsp; <a href="/privacy-policy">Privacy Policy</a></div>
+  <div style="margin-top:14px;"><a href="tel:+447376204980">07376 204980</a> &nbsp;&middot;&nbsp; <a href="/privacy-policy">Privacy Policy</a> &nbsp;&middot;&nbsp; <a href="/terms">Terms &amp; Conditions</a></div>
   <div style="margin-top:10px;font-size:12px;opacity:.6;">
     AU Decorating Limited &middot; Company No. 14912651 &middot; Registered in England &amp; Wales
     &nbsp;&middot;&nbsp;
@@ -786,18 +803,68 @@ FOOTER = """
     <path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2c-1.5 0-3-.4-4.3-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2z"/>
   </svg>
 </a>
+
+<div class="cc-bar" id="ccBar" role="region" aria-label="Cookie notice">
+  <p>We use cookies for essential site functionality and, if you agree, to understand how the site is used. See our <a href="/privacy-policy">Privacy Policy</a> for details.</p>
+  <div class="cc-actions">
+    <button class="cc-btn cc-reject" id="ccReject" type="button">Reject</button>
+    <button class="cc-btn cc-accept" id="ccAccept" type="button">Accept</button>
+  </div>
+</div>
+<script>
+(function(){
+  var KEY = 'cookieConsent';
+  var bar = document.getElementById('ccBar');
+  if(!bar) return;
+  var stored = null;
+  try { stored = localStorage.getItem(KEY); } catch(e) {}
+
+  function grantAnalytics(){
+    if (typeof window.ccGrantAnalytics === 'function') window.ccGrantAnalytics();
+  }
+
+  if(stored === 'accepted'){
+    grantAnalytics();
+  } else if(stored !== 'rejected'){
+    bar.classList.add('cc-show');
+    requestAnimationFrame(function(){ bar.classList.add('cc-in'); });
+  }
+
+  function hide(){
+    bar.classList.remove('cc-in');
+    setTimeout(function(){ bar.classList.remove('cc-show'); }, 350);
+  }
+
+  document.getElementById('ccAccept').addEventListener('click', function(){
+    try { localStorage.setItem(KEY, 'accepted'); } catch(e) {}
+    grantAnalytics();
+    hide();
+  });
+  document.getElementById('ccReject').addEventListener('click', function(){
+    try { localStorage.setItem(KEY, 'rejected'); } catch(e) {}
+    hide();
+  });
+})();
+</script>
 """
 
 WIDGET_INCLUDE = '<script src="/widget.js"></script>'
 
 GOOGLE_TAG = """
-<!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-29ZTK4DW1W"></script>
+<!-- Google tag (gtag.js) - only loaded once cookie consent is granted, see ccGrantAnalytics() -->
 <script>
   window.dataLayer = window.dataLayer || [];
   function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-  gtag('config', 'G-29ZTK4DW1W');
+  window.ccGrantAnalytics = function(){
+    if (window.__gaLoaded) return;
+    window.__gaLoaded = true;
+    var s = document.createElement('script');
+    s.async = true;
+    s.src = 'https://www.googletagmanager.com/gtag/js?id=G-29ZTK4DW1W';
+    document.head.appendChild(s);
+    gtag('js', new Date());
+    gtag('config', 'G-29ZTK4DW1W');
+  };
 </script>
 """
 
@@ -1270,6 +1337,46 @@ PRIVACY_PAGE = """
 </body></html>
 """
 
+TERMS_PAGE = """
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Terms &amp; Conditions - AU Decorating Ltd</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">""" + GOOGLE_TAG + BASE_STYLE + """</head><body>
+""" + NAV + """
+<section class="band">
+  <div class="wrap wrap--narrow">
+    <div class="head">
+      <span class="eyebrow">The small print</span><div class="rule"></div>
+      <h2 class="title serif">Terms &amp; Conditions</h2>
+      <p class="sub">The terms that apply when you book work with AU Decorating Ltd.</p>
+    </div>
+    <div class="prose">
+      <p>These terms apply to any quote, estimate or job booked with AU Decorating Limited (company number 14912651, registered in England &amp; Wales) (&ldquo;we&rdquo;, &ldquo;us&rdquo;). By asking us to carry out work you agree to them.</p>
+      <h3>Quotes &amp; estimates</h3>
+      <p>Quotes are based on the information and access available at the time and are valid for 30 days unless stated otherwise. Prices may change if the scope of work changes once we&rsquo;re on site &mdash; we&rsquo;ll always agree any extra cost with you before carrying it out.</p>
+      <h3>Booking &amp; deposits</h3>
+      <p>Some jobs require a deposit to secure a start date. The remaining balance is due on completion unless we&rsquo;ve agreed a different payment schedule in writing.</p>
+      <h3>Cancellations &amp; rescheduling</h3>
+      <p>We ask for at least 48 hours&rsquo; notice to cancel or move a booked job. Cancellations with less notice, or access not being available on the day, may be subject to a reasonable charge to cover the time reserved for you.</p>
+      <h3>Access &amp; preparation</h3>
+      <p>You&rsquo;ll need to give us reasonable access to the property and clear the work area of furniture, fixtures or valuables we haven&rsquo;t agreed to move ourselves. We&rsquo;ll take care of your home, but we&rsquo;re not responsible for pre-existing damage or wear we didn&rsquo;t cause.</p>
+      <h3>Workmanship &amp; materials</h3>
+      <p>We use trade-quality materials and carry out work to a professional standard. If anything about the finished work isn&rsquo;t right, tell us within a reasonable time and we&rsquo;ll come back and put it right.</p>
+      <h3>Insurance &amp; liability</h3>
+      <p>We carry public liability insurance for work we undertake. Our liability is limited to putting right work that falls below a reasonable standard; we&rsquo;re not liable for indirect or consequential loss.</p>
+      <h3>Payment</h3>
+      <p>Invoices are payable on completion unless otherwise agreed. We accept the payment methods listed on your invoice.</p>
+      <h3>Website use</h3>
+      <p>This website and its chat assistant are provided to help you get a quote. Nothing on this site is a binding offer until we&rsquo;ve confirmed a quote and a booking with you directly.</p>
+      <h3>Governing law</h3>
+      <p>These terms are governed by the law of England &amp; Wales.</p>
+      <h3>Contact</h3>
+      <p>Questions about these terms? Email <a href="mailto:mehmet@au-decorating.com">mehmet@au-decorating.com</a> or call <a href="tel:+447376204980">07376 204980</a>.</p>
+    </div>
+  </div>
+</section>
+""" + FOOTER + WIDGET_INCLUDE + """
+</body></html>
+"""
+
 
 WIDGET_JS = """
 (function () {
@@ -1578,6 +1685,12 @@ def contact():
 def privacy():
     ensure_session()
     return render_template_string(PRIVACY_PAGE)
+
+@app.route("/terms")
+@app.route("/terms-and-conditions")
+def terms():
+    ensure_session()
+    return render_template_string(TERMS_PAGE)
 
 @app.route("/widget.js")
 def widget_js():
