@@ -551,17 +551,31 @@ def _decode_image_data_url(data_url):
         "b64": base64.b64encode(raw).decode("ascii"),
     }
 
+SITE_URL = "https://au-decorating.com"
+
+def page_meta(title, description, path, image="terrace-after.jpg"):
+    url = SITE_URL + path
+    img = SITE_URL + "/static/images/" + image
+    return (
+        '<title>' + title + '</title>'
+        '<meta name="description" content="' + description + '">'
+        '<link rel="canonical" href="' + url + '">'
+        '<meta property="og:type" content="website">'
+        '<meta property="og:site_name" content="AU Decorating Ltd">'
+        '<meta property="og:title" content="' + title + '">'
+        '<meta property="og:description" content="' + description + '">'
+        '<meta property="og:url" content="' + url + '">'
+        '<meta property="og:image" content="' + img + '">'
+        '<meta name="twitter:card" content="summary_large_image">'
+        '<meta name="twitter:title" content="' + title + '">'
+        '<meta name="twitter:description" content="' + description + '">'
+        '<meta name="twitter:image" content="' + img + '">'
+    )
+
 BASE_STYLE = """
 <meta name="google-site-verification" content="dwls3w2IfMF4Y6moYnBLGqjCStb8iGrlxWKWmF4AZyU" />
 <link rel="icon" type="image/png" href="/static/images/logo.png">
 <meta name="theme-color" content="#14110d">
-<meta property="og:type" content="website">
-<meta property="og:site_name" content="AU Decorating Ltd">
-<meta property="og:title" content="AU Decorating Ltd - Portsmouth Painters & Decorators">
-<meta property="og:description" content="10/10 rated painters & decorators in Portsmouth. Interior & exterior painting, flooring, tiling, paving & driveways. Free, no-obligation quotes.">
-<meta property="og:url" content="https://au-decorating.com">
-<meta property="og:image" content="https://au-decorating.com/static/images/terrace-after.jpg">
-<meta name="twitter:card" content="summary_large_image">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
@@ -621,7 +635,7 @@ BASE_STYLE = """
   .wrap--narrow{max-width:760px}
   .head{margin-bottom:38px}
   .head .eyebrow{display:block;margin-bottom:12px}
-  h2.title{font-family:'Playfair Display',serif;font-weight:600;font-size:clamp(26px,4vw,40px);
+  h1.title,h2.title{font-family:'Playfair Display',serif;font-weight:600;font-size:clamp(26px,4vw,40px);
     margin:0 0 10px;color:var(--ink);line-height:1.12}
   .sub{color:var(--mut);max-width:620px;margin:0;font-size:16px}
   .rule{width:46px;height:2px;background:var(--gold);margin:0 0 22px}
@@ -956,8 +970,11 @@ def _ba(before, after, label, ratio):
             '</div><div class="cap"><b>' + label + '</b></div></div>')
 
 HOME_PAGE = """
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>AU Decorating Ltd - Portsmouth Painters &amp; Decorators</title>
-<meta name="description" content="AU Decorating Ltd - 10/10 rated painters and decorators in Portsmouth. Interior and exterior painting, flooring, tiling, paving and driveways. Free quotes, every day.">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">""" + page_meta(
+    "AU Decorating Ltd - Portsmouth Painters &amp; Decorators",
+    "AU Decorating Ltd - 10/10 rated painters and decorators in Portsmouth. Interior and exterior painting, flooring, tiling, paving and driveways. Free quotes, every day.",
+    "/"
+) + """
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <script type="application/ld+json">
 {
@@ -1201,14 +1218,18 @@ HOME_PAGE = """
 """
 
 SERVICES_PAGE = """
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Services - AU Decorating Ltd</title>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">""" + page_meta(
+    "Services - AU Decorating Ltd",
+    "Interior and exterior painting, render repair, wallpapering, flooring, tiling, paving and driveways. Painters and decorators covering Portsmouth, Southsea, Fareham and Gosport.",
+    "/services"
+) + """
 <meta name="viewport" content="width=device-width, initial-scale=1">""" + GOOGLE_TAG + BASE_STYLE + """</head><body>
 """ + NAV + """
 <section class="band">
   <div class="wrap">
     <div class="head">
       <span class="eyebrow">What we do</span><div class="rule"></div>
-      <h2 class="title serif">Our services</h2>
+      <h1 class="title serif">Our services</h1>
       <p class="sub">Painting, decorating and finishing across Portsmouth and the surrounding area.</p>
     </div>
     <div class="cards">
@@ -1232,14 +1253,18 @@ SERVICES_PAGE = """
 """
 
 GALLERY_PAGE = """
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Gallery - AU Decorating Ltd</title>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">""" + page_meta(
+    "Gallery - AU Decorating Ltd",
+    "Before and after photos of painting, decorating, render repair and renovation projects completed by AU Decorating around Portsmouth and Southsea.",
+    "/gallery"
+) + """
 <meta name="viewport" content="width=device-width, initial-scale=1">""" + GOOGLE_TAG + BASE_STYLE + """</head><body>
 """ + NAV + """
 <section class="band">
   <div class="wrap">
     <div class="head">
       <span class="eyebrow">Recent work</span><div class="rule"></div>
-      <h2 class="title serif">The gallery</h2>
+      <h1 class="title serif">The gallery</h1>
       <p class="sub">Real projects completed by AU Decorating around Portsmouth.</p>
     </div>
 
@@ -1280,14 +1305,18 @@ GALLERY_PAGE = """
 """
 
 CONTACT_PAGE = """
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Contact - AU Decorating Ltd</title>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">""" + page_meta(
+    "Contact - AU Decorating Ltd",
+    "Get a free, no-obligation quote from AU Decorating. Call, WhatsApp or use the chat on this page — covering Portsmouth, Southsea, Fareham, Gosport and Havant.",
+    "/contact"
+) + """
 <meta name="viewport" content="width=device-width, initial-scale=1">""" + GOOGLE_TAG + BASE_STYLE + """</head><body>
 """ + NAV + """
 <section class="band">
   <div class="wrap wrap--narrow">
     <div class="head">
       <span class="eyebrow">Get in touch</span><div class="rule"></div>
-      <h2 class="title serif">Let's talk about your project</h2>
+      <h1 class="title serif">Let's talk about your project</h1>
       <p class="sub">Use the chat bubble in the corner for the fastest reply, or reach us directly.</p>
     </div>
     <div class="contact-box">
@@ -1304,14 +1333,18 @@ CONTACT_PAGE = """
 """
 
 PRIVACY_PAGE = """
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Privacy Policy - AU Decorating Ltd</title>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">""" + page_meta(
+    "Privacy Policy - AU Decorating Ltd",
+    "How AU Decorating Ltd collects, uses and protects the information you share through this website and its chat assistant.",
+    "/privacy-policy"
+) + """
 <meta name="viewport" content="width=device-width, initial-scale=1">""" + GOOGLE_TAG + BASE_STYLE + """</head><body>
 """ + NAV + """
 <section class="band">
   <div class="wrap wrap--narrow">
     <div class="head">
       <span class="eyebrow">Your privacy</span><div class="rule"></div>
-      <h2 class="title serif">Privacy Policy</h2>
+      <h1 class="title serif">Privacy Policy</h1>
       <p class="sub">How AU Decorating Ltd looks after the information you share with us.</p>
     </div>
     <div class="prose">
@@ -1338,14 +1371,18 @@ PRIVACY_PAGE = """
 """
 
 TERMS_PAGE = """
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Terms &amp; Conditions - AU Decorating Ltd</title>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">""" + page_meta(
+    "Terms &amp; Conditions - AU Decorating Ltd",
+    "The terms that apply when you get a quote or book work with AU Decorating Ltd, painters and decorators in Portsmouth.",
+    "/terms"
+) + """
 <meta name="viewport" content="width=device-width, initial-scale=1">""" + GOOGLE_TAG + BASE_STYLE + """</head><body>
 """ + NAV + """
 <section class="band">
   <div class="wrap wrap--narrow">
     <div class="head">
       <span class="eyebrow">The small print</span><div class="rule"></div>
-      <h2 class="title serif">Terms &amp; Conditions</h2>
+      <h1 class="title serif">Terms &amp; Conditions</h1>
       <p class="sub">The terms that apply when you book work with AU Decorating Ltd.</p>
     </div>
     <div class="prose">
@@ -1650,15 +1687,20 @@ def ensure_session():
 
 @app.route("/sitemap.xml")
 def sitemap():
-    pages = ["/", "/services", "/gallery", "/contact", "/privacy-policy"]
+    pages = [("/", "1.0"), ("/services", "0.8"), ("/gallery", "0.8"), ("/contact", "0.7"),
+             ("/privacy-policy", "0.3"), ("/terms", "0.3")]
     base = "https://au-decorating.com"
-    urls = "".join(f"<url><loc>{base}{p}</loc></url>" for p in pages)
+    urls = "".join(f"<url><loc>{base}{p}</loc><priority>{pr}</priority></url>" for p, pr in pages)
     xml = f'<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{urls}</urlset>'
     return Response(xml, mimetype="application/xml")
 
 @app.route("/robots.txt")
 def robots():
     return Response("User-agent: *\nAllow: /\nSitemap: https://au-decorating.com/sitemap.xml", mimetype="text/plain")
+
+@app.route("/favicon.ico")
+def favicon():
+    return app.send_static_file("images/logo.png")
 
 @app.route("/")
 def home():
